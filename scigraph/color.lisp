@@ -87,7 +87,7 @@ advised of the possiblity of such damages.
 (defvar *colors* nil "Used for pop-edit.")
 (defvar *color-hash* (make-hash-table :test 'equal))
 
-(defun alu-for-color (color-name)
+(defun ink-for-color (color-name)
     "Translate a color name to an ink/alu"
     (or *colors* (initialize-color-system))
     (or (gethash color-name *color-hash* nil)
@@ -105,26 +105,23 @@ advised of the possiblity of such damages.
 
 (defun initialize-color-system ()
   "Initialize the color screen if available."
-  ;; Called by ALU-FOR-COLOR the first time an alu is needed.
+  ;; Called by INK-FOR-COLOR the first time an ink is needed.
   (make-color-choices *color-specifications*))
 
-(defun alu-for-stream (stream color-name)
+(defun ink-for-stream (stream color-name)
   "Translate a color name to an ink/alu"
-  (if (color-stream-p stream)
-      (alu-for-color color-name)
-      (if (eq color-name :black) %erase %draw)))
+  (ink-for-color color-name))
 
 (defun draw-color-swatch (stream color-name pretty-name selected-p &optional size)
   "Draw a sample of the given color at the current cursor position."
   (declare (ignore pretty-name))
   (or size (setq size (stream-line-height stream)))
   (let ((rad (1- (values (truncate size 2)))))
-    (multiple-value-bind (x y) (stream-cursor-position* stream)
-      (draw-circle (+ x rad 1) (+ y rad 1) rad
-		   :filled t
-		   :stream stream :alu (alu-for-stream stream color-name))
-      (draw-rectangle x (+ x size -1) y (+ y size -1)
-		      :stream stream :filled nil :alu (if selected-p %draw %erase)))))
+    (multiple-value-bind (x y) (stream-cursor-position stream)
+      (draw-circle* stream (+ x rad 1) (+ y rad 1) rad
+		   :filled t :ink (ink-for-stream stream color-name))
+      (draw-rectangle* stream x (+ y size -1) (+ x size -1) y 
+		      :filled nil :ink (if selected-p +foreground-ink+ +background-ink+)))))
 
 (defun display-colors (&optional
 		       (stream *standard-output*)
@@ -156,7 +153,7 @@ advised of the possiblity of such damages.
       (loop
 	(if (> intensity 1.0) (return))
 	(let ((gray (clim:make-rgb-color intensity intensity intensity)))
-	  (draw-rectangle left right bottom top :stream stream :alu gray :filled t)
+	  (draw-rectangle* stream left top right bottom :ink gray :filled t)
 	  (setq left right right (+ right increment))
 	  (incf intensity quantum))))))
 

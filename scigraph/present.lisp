@@ -35,6 +35,13 @@ advised of the possiblity of such damages.
 	   (read-char stream)
 	   (error "You must select a graph with the mouse.")))
 
+(define-presentation-method highlight-presentation ((type graph) record stream state)
+  (declare (ignore type))
+  (with-bounding-rectangle* (left top right bottom) (outside-box (presentation-object record))
+    (draw-rectangle* stream 
+                     left top right bottom
+                     :ink +flipping-ink+ :filled nil)))
+
 (define-presentation-type graph-data ()
   :description "a graph dataset" 
   :printer ((object stream)
@@ -43,28 +50,25 @@ advised of the possiblity of such damages.
 	   (read-char stream)
 	   (error "You must select a graph dataset with the mouse.")))
 
-(defun display-graph (graph &key
-			    (stream *standard-output*)
-			    (scroll-if-necessary nil)
-			    (width 500)
-			    (height 300))
-  "Displays graph with upper-left corner starting at current cursor position."
-  (declare (ignore scroll-if-necessary))
+(defmethod display-graph ((graph basic-graph)
+                          &key
+                            (stream *standard-output*)                            
+                            top
+                            left
+                            (reference :outside) ; :inside or :outside
+                            (width 500)
+                            (height 300))
+  "Displays graph with upper-left corner starting at current cursor position
+or at top left."
   (let ((*standard-output* stream))
-    (multiple-value-bind (x1 y1) (stream-cursor-position* stream)
-      (setq width (truncate width))
-      (setq height (truncate height))
-      #-clim				; dw bug?
-      (when scroll-if-necessary
-	(multiple-value-bind (left top ignore bottom) 
-	    (stream-viewport stream)
-	  (if (> (+ y1 height) bottom)
-	      (scl:send-if-handles
-	       stream :set-viewport-position left (+ top height)))))
-      (stream-increment-cursor-position stream 0 height)
-      (multiple-value-bind (u v) (screen-to-uv stream x1 y1)
-	(set-uv-outside graph STREAM u (+ u width) (- v height) v)
-	(display graph stream)))))
+    (unless (and top left)
+      (multiple-value-bind (cursor-x cursor-y) (stream-cursor-position stream)
+        (multiple-value-setq (left top) (values (or left cursor-x) (or top cursor-y)))))
+    (if  (eql reference :inside)
+         (set-inside-box graph (make-rectangle* left top (+ left width) (+ top height)) stream)
+         (set-outside-box graph (make-rectangle* left top  (+ left width) (+ top height)) stream))
+    (display graph stream)
+    (setf (stream-cursor-position stream) (values left (+ top height)))))
 
 (defun save-postscript-graph (graph filename &key (width 400) (height 400))
   (with-open-file (s filename :direction :output)
@@ -79,13 +83,14 @@ advised of the possiblity of such damages.
   (let ((h (ROUND height (length graphs)))) 
     (dolist (graph graphs)
       (display-graph graph
-		     :stream stream
-		     :height h :width width))))
+	         :stream stream
+	         :height h :width width)
+      (stream-increment-cursor-position stream 0 50))))
 
 (defun window-reverse-video (window &optional (fore :white) (back :black))
   "Change the foreground/background colors of the window."
-  (setf (medium-foreground window) (alu-for-stream window fore)
-        (medium-background window) (alu-for-stream window back)))
+  (setf (medium-foreground window) (ink-for-stream window fore)
+        (medium-background window) (ink-for-stream window back)))
 
 (defun autoscale-graphs (graphs autoscale-type)
   "Let the graphs mutually decide what scaling limits to use.
@@ -109,11 +114,11 @@ advised of the possiblity of such damages.
 	    (setq maxy (max maxy y1)))))
       (dolist (graph graphs)
 	(when (member autoscale-type '(:x :both))
-	  (setf (xll graph) minx)
-	  (setf (xur graph) maxx))
+	  (setf (x-min graph) minx)
+	  (setf (x-max graph) maxx))
 	(when (member autoscale-type '(:y :both))
-	  (setf (yll graph) miny)
-	  (setf (yur graph) maxy))
+	  (setf (y-min graph) miny)
+	  (setf (y-max graph) maxy))
 	(setf (auto-scale graph)
 	      (case autoscale-type
 		(:x :y)
@@ -130,7 +135,7 @@ advised of the possiblity of such damages.
 				(stream *standard-output*)
 				(reverse-video :own-color))
   "Fill the window with columns graphs."
-  (when (and (color-stream-p stream) (not (eql reverse-video :own-color)))
+  (when (and (not (eql reverse-video :own-color)))
     (if reverse-video
 	(window-reverse-video stream :white :black)
         (window-reverse-video stream :black :white)))
@@ -148,8 +153,8 @@ advised of the possiblity of such damages.
 		(dotimes (row rows)
 		  (let ((temp (pop graphs)))
 		    (and temp (push temp g))))
-		(stream-set-cursor-position*
-		 stream (* (values (truncate w columns)) column) 0)
+		(setf (stream-cursor-position stream)
+              (values (* (values (truncate w columns)) column) 0))
 		(display-graphs (nreverse g)
 				:stream stream
 				:height h
@@ -181,12 +186,6 @@ advised of the possiblity of such damages.
 	    (when superior
 	      (graph-under-annotation-under-presentation superior)))))))
 
-(defun graph-under-mouse ()
-  (let ((stream (window-under-mouse)))
-    (let ((p (presentation-under-pointer stream)))
-      (when p (graph-under-presentation p)))))
-
-
 
 ;;;
 ;;; CP commands for graphs and graph-data.
@@ -216,11 +215,10 @@ advised of the possiblity of such damages.
 
 (define-graph-command com-slider-crosshairs ((graph 'graph) (WINDOW 'sheet))
   "Display crosshairs on the graph at the current pointer position."
-   (multiple-value-bind (x y) (uv-under-mouse window)
-     (multiple-value-setq (x y)
-       (uv-to-xy graph x y))
-     (multiple-value-setq (x y) (slider-interact graph WINDOW x y t))
-     (and x y (describe-point graph x y))))
+  (multiple-value-bind (x y) (stream-pointer-position window)
+    (multiple-value-bind (x y) (transform-position (stream-to-xy-transformation graph) x y)
+      (multiple-value-setq (x y) (slider-interact graph WINDOW x y t))
+      (and x y (describe-point graph x y)))))
 
 (define-presentation-to-command-translator slider-crosshairs
   (graph :command-name com-slider-crosshairs
@@ -278,23 +276,22 @@ advised of the possiblity of such damages.
 (defun draw-dash-sample (stream dash-pattern pretty-name selected-p)
   "Show what this dash pattern looks like."
   (declare (ignore pretty-name))
-  (multiple-value-bind (x y) (stream-cursor-position* stream)
+  (multiple-value-bind (x y) (stream-cursor-position stream)
     ;; (format stream "(~A ~A)" x y)
     (let ((width (* 3 (stream-character-width stream)))
 	  (height (* 6 (stream-line-height stream)))
 	  (thick (+ 2 %thickness))
 	  (thin %thickness)
 	  (fudge 2))
-      (device-draw-line stream (+ x fudge) (+ y fudge)
+      (draw-line* stream (+ x fudge) (+ y fudge)
 			(- (+ x width) fudge) (- (+ y height) fudge)
 			:thickness (if selected-p thick thin)
 			:dash-pattern dash-pattern
 			:transform nil
-			:alu %draw)
-      (draw-rectangle x (+ x width) (+ y height) y
-		      :stream stream
+			:ink +foreground-ink+)
+      (draw-rectangle* stream x y (+ x width) (+ y height)               
 		      :filled nil
-		      :alu (if selected-p %draw %erase))
+		      :ink (if selected-p +foreground-ink+ +background-ink+))
       (force-output stream))))
 
 #-clim-2

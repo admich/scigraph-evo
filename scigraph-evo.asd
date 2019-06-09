@@ -1,6 +1,6 @@
 
-(defsystem #:scigraph
-    :depends-on (#:mcclim #:scigraph/dwim)
+(defsystem #:scigraph-evo
+    :depends-on (#:mcclim #:scigraph-evo/dwim)
     :serial t
     :components ((:file "scigraph/package")
                  (:file "scigraph/random")
@@ -25,14 +25,14 @@
                  (:file "scigraph/popup-accept")
                  (:file "scigraph/popup-accept-methods")
                  (:file "scigraph/frame")
-                 (:file "scigraph/demo-frame")))
+                 (:file "scigraph/demo-frame")
+                 (:file "scigraph/showcase")))
 
-(defsystem #:scigraph/dwim
+(defsystem #:scigraph-evo/dwim
   :depends-on (#:mcclim)
   :components ((:file "dwim/package")
                (:file "dwim/macros")
-               (:file "dwim/tv")
-               (:file "dwim/draw")
+               (:file "dwim/tv")               
                (:file "dwim/present")
                (:file "dwim/extensions")
                (:file "dwim/wholine")))

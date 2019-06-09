@@ -52,11 +52,7 @@ Y-LABEL
   ((data :initform () :initarg :data :accessor data))) ; data to display
 
 (defclass BASIC-GRAPH-DATA (named-mixin)
-  (;; The alu is basically a (relatively) internal representation of a color so the
-   ;; value here is implementation specific.
-   ;; On LISPM it is either a number like tv:alu-xor, a keyword like :DRAW
-   ;; In CLIM, it is an ink.
-   (alu :initform %alu :initarg :alu :accessor alu)))
+  ((ink :initform +foreground-ink+ :initarg :ink :accessor ink)))
 
 (declare-required-method display-data (SELF STREAM graph)) ; For drawing
 (declare-required-method name (SELF))	; For presenting
@@ -101,28 +97,25 @@ PROTOCOL:
 		  (funcall function x y)))
 	    data))
 
-(defmacro with-alu ((stream alu) &body body)
-  `(with-drawing-options (,stream :ink ,alu) ,@body))
+(defmacro with-ink ((stream ink) &body body)
+  `(with-drawing-options (,stream :ink ,ink) ,@body))
 
 (defmethod display-data ((self essential-graph-data-map-mixin) STREAM graph)
   "Display the data on graph GRAPH using DATUM-DISPLAYER."
-  (with-alu (stream (alu self))
-    ;; Fixup the alu just once, since its the same for every datum.
+  (with-ink (stream (ink self))
+    ;; Fixup the ink just once, since its the same for every datum.
     (let ((displayer (datum-displayer self graph))
-	  (H (stream-height stream))
-	  (Trans (xy-to-uv-transform graph)))
-      (declare (compiled-function displayer Trans)
-	       (fixnum H))
-      (map-data self #'(lambda (datum)
-			 (multiple-value-bind (x y) (datum-position self datum)
-			   (multiple-value-setq (x y) (funcall trans x y))
-			   (setq y (- H (the fixnum y)))
-			   (funcall displayer stream x y datum)
-			   ;; Forcing the x buffer is nice here, but it is
-			   ;; extremely expensive.  It slows drawing by 4x.
-			   ;;  (force-output stream)
+          (trans (xy-to-rs-transformation graph)))
+      (declare (compiled-function displayer))
+      (map-data self #'(lambda (datum)                         
+                         (multiple-value-bind (x y) (datum-position self datum)
+                           (multiple-value-setq (x y) (transform-position trans x y))
+                           (funcall displayer stream x y datum)
+                           ;; Forcing the x buffer is nice here, but it is
+                           ;; extremely expensive.  It slows drawing by 4x.
+                           ;;  (force-output stream)
                            ))
-		(data self)))))
+                (data self)))))
 
 (defmethod datum-displayer ((self essential-graph-data-map-mixin) graph)
   "Returns a function that expects a stream, UV coordinates of next datum,
@@ -205,19 +198,11 @@ PROTOCOL:
     map methods, because we still want to know exactly where datums are.
     The random seed is kept in hopes of generating a reproducible dithering."))
 
-(defmethod xy-to-uv-distance (graph x-distance y-distance)
+(defmethod xy-to-rs-distance (graph x-distance y-distance)
   ;; there must be a better equation
-  (multiple-value-bind (u0 v0) (xy-to-uv graph 0 0)
-    (declare (fixnum u0 v0))
-    (multiple-value-bind (u1 v1) (xy-to-uv graph x-distance y-distance)
-      (declare (fixnum u1 v1))
-      (values (- u1 u0) (- v1 v0)))))
-
-(defmethod uv-to-xy-distance (graph x-distance y-distance)
-  ;; there must be a better equation
-  (multiple-value-bind (u0 v0) (uv-to-xy graph 0 0)
-    (multiple-value-bind (u1 v1) (uv-to-xy graph x-distance y-distance)
-      (values (- u1 u0) (- v1 v0)))))
+  (multiple-value-bind (r0 s0) (xy-to-rs graph 0 0)
+    (multiple-value-bind (r1 s1) (xy-to-rs graph x-distance y-distance)
+      (values (- r1 r0) (- s1 s0)))))
 
 (defmethod datum-displayer :around ((self GRAPH-DATA-DITHER-MIXIN) graph)
   (with-slots (x-dither y-dither dither-seed) self
@@ -226,7 +211,7 @@ PROTOCOL:
       (if (and x-dither x-dither (zerop x-dither) (zerop y-dither))
 	  f
 	  (multiple-value-bind (u-dither v-dither)
-	      (xy-to-uv-distance graph
+	      (xy-to-rs-distance graph
 				 (or x-dither 0) (or y-dither 0))
 	    (declare (fixnum u-dither v-dither))
 	    ;; Do dithering in uv coordinates so we can avoid floating point arithmetic
@@ -256,7 +241,7 @@ PROTOCOL:
 (defclass graphics-style-mixin ()
   ((pattern :initform nil :initarg :pattern :accessor pattern) ; in clim, NIL == FILLED
    (thickness :initform 0 :initarg :thickness :accessor thickness)			
-   (line-end-shape :initform :round :initarg :line-end-shape :accessor line-end-shape))
+   (line-cap-shape :initform :round :initarg :line-cap-shape :accessor line-cap-shape))
   (:documentation "Fancy graphics style."))
 
 (defvar *SCI-GRAPH-AVAILABLE-STIPPLES*
@@ -328,13 +313,6 @@ PROTOCOL:
 	 (typep data 'sequence)
 	 (> (length data) 2500))))
 
-(defmethod compute-line-displayer ((dataset t))
-  ;; Returns a function of (stream x1 y1 x2 y2) that draws a line without clipping.
-  (make-optimized-line-displayer
-   (alu dataset)
-   (thickness dataset)
-   (not (dont-record-output-history dataset))))
-
 (defmethod datum-style-displayer
 	   ((self graph-datum-line-symbology-mixin)
 	    graph
@@ -342,99 +320,47 @@ PROTOCOL:
   "Draws a line between points."
   (declare (ignore graph))
   (let* ((line-style (line-style self))
-	 (thickness (thickness self))
-	 (alu (alu self))
-	 (pattern (pattern self))
-	 (line-end-shape (line-end-shape self))
-	 (clip-rectangle *clip-rectangle*)
-	 (left (pop clip-rectangle))
-	 (right (pop clip-rectangle))
-	 (bottom (pop clip-rectangle))
-	 (top (pop clip-rectangle))
-	 (dash-ds 0.0)
-	 (last-in nil)
-	 (last-u NIL)
-	 (last-v NIL))
-    (declare (fixnum bottom top left right line-style thickness))
-    (if (< bottom top) (psetq top bottom bottom top))
-    (if (zerop line-style)
-	(let ((displayer (compute-line-displayer self)))
-	  #'(lambda (stream u v datum)
-	      (declare (fixnum u v)
-		       (ignore datum))
-	      ;; This is the most common case.
-	      (let ((this-in (and u (< left u right) (< top v bottom))))
-		(cond ((null last-u))
-		      ((null u))
-		      ((and (= u last-u) (= v last-v)))
-		      ((and last-in this-in)
-		       ;; dont bother to clip.
-		       (funcall displayer stream last-u last-v u v))
-		      (t
-		       ;; do it the slow way (rarely)
-		       (device-draw-line stream last-u last-v u v
-					 :thickness thickness
-					 :transform nil :alu alu)))
-		(setq last-in this-in)
-		(setq last-u u last-v v))))
-	#'(lambda (stream u v datum)
-	    (declare (fixnum u v)
-		     (ignore datum))
-	    (when (and u last-u)
-	      (setq dash-ds
-		    (device-draw-line stream last-u last-v u v
-				      :alu alu
-				      :dash-pattern line-style 
-				      :pattern pattern
-				      :thickness thickness
-				      :line-end-shape line-end-shape
-				      :dash-ds dash-ds
-				      :transform nil)))
-	    (setq last-u u last-v v)))))
+         (line-dashes (if (zerop line-style) nil (aref *dash-patterns* (1- line-style))))
+         (thickness (thickness self))
+         (ink (ink self))
+         (line-cap-shape (line-cap-shape self))
+         (last-r NIL)
+         (last-s NIL))
+    (declare (fixnum thickness))
+    #'(lambda (stream r s datum)
+        (declare (ignore datum))
+        (when (and r last-r)
+          (draw-line* stream last-r last-s r s
+                      :ink ink
+                      :line-dashes line-dashes
+                      :line-thickness thickness
+                      :line-cap-shape line-cap-shape))
+        (setq last-r r last-s s))))
 
 (defmethod datum-style-displayer
     ((self graph-datum-line-symbology-mixin)
      graph
      (type (eql :LINE-SYMBOL)))
   "Draws a line, with a symbol every min-symbol-spacing pixels."
-  (let* ((line-style (line-style self))
-	 (alu (alu self))
-	 (pattern (pattern self))
-	 (thickness (thickness self))
-	 (line-end-shape (line-end-shape self))
-	 (min-symbol-spacing (min-symbol-spacing self))
-	 (dash-ds 0.0)
-	 (last-distance -1)
-	 (last-u NIL)
-	 (last-v NIL)
-	 (symbol-displayer
-	  (datum-style-displayer self graph :scatter)))
-    (declare (fixnum last-distance min-symbol-spacing thickness)
-	     (compiled-function symbol-displayer))
+  (let* ((min-symbol-spacing (min-symbol-spacing self))
+         (last-distance -1)
+         (last-r NIL)
+         (last-s NIL)
+         (symbol-displayer
+          (datum-style-displayer self graph :scatter))
+         (line-displayer
+          (datum-style-displayer self graph :line)))
+    (declare (compiled-function symbol-displayer) (compiled-function line-displayer))
     (flet ((distance (x1 y1 x2 y2)
-	     (declare (fixnum x1 y1 x2 y2))
-	     ;;; This needs to return an integer (actually it is a fixnum, assuming x&y are.)
-	     (values (ROUND (sqrt (+ (expt (- x2 x1) 2) (expt (- y2 y1) 2)))))))
-      #'(lambda (stream u v datum)
-	  (declare (fixnum u v))
-	  (when (not (minusp last-distance))
-	    (incf last-distance (the fixnum (distance u v last-u last-v))))
-	  (when (or (minusp last-distance) (> last-distance min-symbol-spacing))
-	    (funcall symbol-displayer stream u v datum)
-	    (setq last-distance 0))
-	  (cond ((not last-u))
-		((not u))
-		(t
-		 (setq dash-ds
-		   (device-draw-line stream last-u last-v u v
-				     :alu alu
-				     :dash-pattern line-style 
-				     :pattern  pattern
-				     :thickness thickness
-				     :line-end-shape line-end-shape
-				     :dash-ds dash-ds
-				     :transform nil))))
-	  (setq last-u u last-v v)))))
+         (values (ROUND (sqrt (+ (expt (- x2 x1) 2) (expt (- y2 y1) 2)))))))
+      #'(lambda (stream r s datum)
+          (when (not (minusp last-distance))
+            (incf last-distance (distance r s last-r last-s)))
+          (when (or (minusp last-distance) (> last-distance min-symbol-spacing))
+            (funcall symbol-displayer stream r s datum)
+            (setq last-distance 0))
+          (funcall line-displayer stream r s datum)
+          (setq last-r r last-s s)))))
 			      
 
 (defclass GRAPH-DATUM-BAR-SYMBOLOGY-MIXIN
@@ -468,72 +394,24 @@ PROTOCOL:
   "Draws a bar centered at datum.  If WIDTH is not provided BAR-WIDTH
    is used. If neither WIDTH nor BAR-WIDTH are provided, the width of the
    bar is determined from point spacing and points are assume ordered in X."
-  (multiple-value-bind (x0 y0) (xy-to-uv graph 0.0 0.0)	; baseline position.
-    (let* ((pattern (pattern self))
-	   (line-style (line-style self))
-	   (thickness (thickness self))
-	   (line-end-shape (line-end-shape self))
-	   (dash-ds 0.0)
-	   (bar-width (bar-width self))
-	   (default-width (and bar-width
-			       (values (round (* bar-width (x-u-scale graph))))))
-	   (alu (alu self))
-	   (transform-baseline t)
-	   x-last
-	   y-last)
-	  ;;; KRA: Factor pattern out of lambda.
+  (multiple-value-bind (x0 y0) (xy-to-rs graph 0.0 0.0)	; baseline position.
+    (let* ((thickness (thickness self))
+           (line-cap-shape (line-cap-shape self))           
+           (bar-width (bar-width self))
+           (default-width (and bar-width
+                               (values (round (* bar-width (x-scale graph))))))
+           (ink (ink self)))
       #'(lambda (stream x y datum)
-	  (declare (ignore datum))
-	  (when transform-baseline
-	    ;; have to wait to do this till we have a stream.
-	    (multiple-value-setq (x0 y0) (uv-to-screen stream x0 y0))
-	    (setq transform-baseline nil))
-	  (let* ((width default-width))
-	    (if width
-		(let* ((half (values (truncate width 2)))
-		       (x- (- x half))
-		       (x+ (+ x half)))
-		  ;; center of bar corresponds to x,y position
-		  (if pattern (device-draw-rectangle stream
-						     x- x+ y0 y
-						     :alu alu
-						     :filled t 
-						     :pattern pattern)
-		      (setq dash-ds
-			    (with-stack-list (points x- y0 x- y x+ y x+ y0)
-			      (device-draw-lines stream points
-						 :alu alu
-						 :dash-ds dash-ds
-						 :dash-pattern line-style
-						 :pattern pattern
-						 :thickness thickness
-						 :line-end-shape
-						 line-end-shape
-						 :transform nil)))))
-		;; No width case:  end of bar corresponds to x,y position.
-		;; This is pretty much like :step is drawn, so that variable sampling
-		;; rates look right.
-		(when x-last
-		  (let* ((width (values (truncate (- x x-last) 2)))
-			 (x++ (+ x-last width)))
-		    (if pattern
-			(device-draw-rectangle stream (- x width) (+ x width) y0 y
-					       :filled t :alu alu :pattern pattern)
-			(setq dash-ds
-			      (with-stack-list (points
-						 x-last y-last x++ y-last
-						 x++ y0 x++ y x y)
-				(device-draw-lines stream points
-						   
-						   :alu alu
-						   :dash-ds dash-ds
-						   :dash-pattern line-style
-						   :pattern pattern
-						   :thickness thickness
-						   :line-end-shape
-						   line-end-shape
-						   :transform nil)))))))
-	    (setq x-last x y-last y))))))
+          (declare (ignore datum))
+          (let* ((width default-width))
+            (if width
+                (let* ((half (values (truncate width 2)))
+                       (x- (- x half))
+                       (x+ (+ x half)))
+                  (draw-rectangle* stream
+                                   x- y0 x+ y
+                                   :ink ink
+                                   :filled t))))))))
 
 
 (defclass GRAPH-DATUM-STEP-SYMBOLOGY-MIXIN
@@ -552,92 +430,52 @@ PROTOCOL:
      (type (eql :CENTERED-STEP)))
   "Draws a line between points."
   (declare (ignore graph))
-  (let ((line-style (line-style self))
-	(alu (alu self))
-	(pattern (pattern self))
-	(thickness (thickness self))
-	(line-end-shape (line-end-shape self))
-	(dash-ds 0.0)
-	(last-u NIL)
-	(last-v NIL))
-    #'(lambda (stream u v datum)
-	(declare (ignore datum))
-	dash-ds
-	(cond ((not last-u))
-	      ((not u))
-	      (t
-	       (let ((u+ (+ last-u (values (truncate (- u last-u) 2)))))
-		 (setq dash-ds
-		   (with-stack-list (points last-u last-v u+ last-v u+ v u v)
-				    (device-draw-lines STREAM points
-						       :alu alu
-						       :dash-pattern line-style
-						       :pattern pattern
-						       :thickness thickness
-						       :line-end-shape line-end-shape
-						       :transform nil))))))
-	(setq last-u u last-v v))))
+  (let* ((line-style (line-style self))
+        (line-dashes (if (zerop line-style) nil (aref *dash-patterns* (1- line-style))))        
+        (ink (ink self))
+        (thickness (thickness self))
+        (line-cap-shape (line-cap-shape self))        
+        (last-r NIL)
+        (last-s NIL))
+    #'(lambda (stream r s datum)
+        (declare (ignore datum))
+        (cond ((not last-r))
+              ((not r))
+              (t
+               (let* ((r- (/ (+ r last-r) 2)))
+                 (draw-polygon* stream (list last-r last-s r- last-s r- s r s)
+                                :closed nil
+                                :filled nil
+                            :line-thickness thickness
+                            :line-cap-shape line-cap-shape
+                            :line-dashes line-dashes))))
+        (setq last-r r last-s s))))
 
 (defmethod datum-style-displayer
-	   ((self graph-datum-line-symbology-mixin)
-	    graph
-	    (type (eql :STEP)))
-  "Draws a line between points."
+    ((self graph-datum-line-symbology-mixin)
+     graph
+     (type (eql :STEP)))
+  "Draws step between points."
   (declare (ignore graph))
   (let* ((line-style (line-style self))
-	 (alu (alu self))
-	 (pattern (pattern self))
-	 (thickness (thickness self))
-	 (line-end-shape (line-end-shape self))
-	 (clip-rectangle *clip-rectangle*)
-	 (left (pop clip-rectangle))
-	 (right (pop clip-rectangle))
-	 (bottom (pop clip-rectangle))
-	 (top (pop clip-rectangle))
-	 (dash-ds 0.0)
-	 (last-in nil)
-	 (last-u NIL)
-	 (last-v NIL))
-    (declare (fixnum thickness))
-    (if (< bottom top) (psetq top bottom bottom top))
-    (if (zerop line-style)
-	(let ((displayer (compute-line-displayer self)))
-	  #'(lambda (stream u v datum)
-	      (declare (fixnum u v)
-		       (ignore datum))
-	      ;; This is the most common case.
-	      (let ((this-in (and u (< left u right) (< top v bottom))))
-		(cond ((null last-u))
-		      ((null u))
-		      ((and (= u last-u) (= v last-v)))
-		      ((and last-in this-in)
-		       ;; dont bother to clip.
-		       (funcall displayer stream last-u last-v u last-v)
-		       (funcall displayer stream u last-v u v))
-		      (t
-		       ;; do it the slow way (rarely)
-		       (with-stack-list (points last-u last-v u last-v u v)
-			 (device-draw-lines STREAM points
-					    :alu alu :transform nil))))
-		(setq last-in this-in)
-		(setq last-u u last-v v))))
-	#'(lambda (stream u v datum)
-	    (declare (fixnum u v)
-		     (ignore datum))
-	    dash-ds
-	    (cond ((not last-u))
-		  ((not u))
-		  (t
-		   (setq dash-ds
-			 (with-stack-list (points last-u last-v u last-v u v)
-			   (device-draw-lines STREAM points
-					      :alu alu
-					      :dash-pattern line-style
-					      :pattern pattern
-					      :thickness thickness
-					      :line-end-shape line-end-shape
-					      :transform nil)))))
-	    (setq last-u u last-v v)))))
+         (line-dashes (if (zerop line-style) nil (aref *dash-patterns* (1- line-style))))        
+         (ink (ink self))
+         (thickness (thickness self))
+         (line-cap-shape (line-cap-shape self))        
+         (last-r NIL)
+         (last-s NIL))
+    #'(lambda (stream r s datum)
+        (declare (ignore datum))
+        (cond ((not last-r))
+              ((not r))
+              (t
+               (draw-polygon* stream (list last-r last-s r last-s r s)
+                              :closed nil
+                              :filled nil
+                              :line-thickness thickness
+                              :line-cap-shape line-cap-shape
+                              :line-dashes line-dashes)))
+        (setq last-r r last-s s))))
 
 
 (defclass GRAPH-DATUM-SCATTER-SYMBOLOGY-MIXIN
@@ -655,26 +493,18 @@ PROTOCOL:
 	   ((self graph-datum-scatter-symbology-mixin)
 	    graph
 	    (style (eql :SCATTER)))
-  (declare (ignore graph))
+  (declare (ignore graph))  
   (let* ((data-symbol (data-symbol self))
-	 (symbol-height (values (truncate (symbol-height self) 2)))
-	 (pattern (pattern self))
-	 (alu (alu self))
-	 (thickness (thickness self))
-	 (clip-rectangle *clip-rectangle*)
-	 (left (pop clip-rectangle))
-	 (right (pop clip-rectangle))
-	 (bottom (pop clip-rectangle))
-	 (top (pop clip-rectangle))
-	 (displayer (symbol-displayer data-symbol alu thickness pattern)))
-    (declare (fixnum left right bottom top)
-	     (compiled-function displayer))
-    (if (< bottom top) (psetq top bottom bottom top))
-    #'(lambda (stream u v datum)
-	(declare (fixnum u v)
+         (symbol-height (values (truncate (symbol-height self) 2)))
+         (pattern (pattern self))
+         (ink (ink self))
+         (thickness (thickness self))
+         (displayer (symbol-displayer data-symbol ink thickness pattern)))
+    (declare (compiled-function displayer))
+    #'(lambda (stream r s datum)
+        (declare 
 		 (ignore datum))
-	(when (and u v (<= left u right) (<= top v bottom))
-	  (funcall displayer stream u v symbol-height)))))
+        (funcall displayer stream r s symbol-height))))
 
 (defclass dataset-datum-size-mixin () ()
    (:documentation
@@ -689,24 +519,15 @@ PROTOCOL:
 	    (style (eql :SCATTER)))
   (declare (ignore graph))
   (let* ((data-symbol (data-symbol self))
-	 (symbol-height (symbol-height self))
-	 (pattern (pattern self))
-	 (alu (alu self))
-	 (thickness (thickness self))
-	 (clip-rectangle *clip-rectangle*)
-	 (left (pop clip-rectangle))
-	 (right (pop clip-rectangle))
-	 (bottom (pop clip-rectangle))
-	 (top (pop clip-rectangle))
-	 (displayer (symbol-displayer data-symbol alu thickness pattern)))
-    (declare (fixnum left right bottom top)
-	     (compiled-function displayer))
-    (if (< bottom top) (psetq top bottom bottom top))
-    #'(lambda (stream u v datum)
-	(declare (fixnum u v))
-	(when (and u v (<= left u right) (<= top v bottom))
-	  (funcall displayer stream u v
-		   (values (truncate (or (datum-size self datum) symbol-height) 2)))))))
+         (symbol-height (symbol-height self))
+         (pattern (pattern self))
+         (ink (ink self))
+         (thickness (thickness self))
+         (displayer (symbol-displayer data-symbol ink thickness pattern)))
+    (declare (compiled-function displayer))
+    #'(lambda (stream r s datum)
+        (funcall displayer stream r s
+                   (values (truncate (or (datum-size self datum) symbol-height) 2))))))
 
 
 (defclass GRAPH-DATA-SYMBOLOGY-MIXIN
@@ -723,20 +544,20 @@ PROTOCOL:
 (defclass GRAPH-DATA-COLOR-MIXIN ()
     ((color :initform :gold :initarg :color :accessor color)))
 
-(defmethod update-alu-for-stream ((self graph-data-color-mixin) (stream t))
-  "Match the alu to the stream."
+(defmethod update-ink-for-stream ((self graph-data-color-mixin) (stream t))
+  "Match the ink to the stream."
   ;; Don't forget that encapsulation may occur, and the stream may not
   ;; be a window at all.  (continuation-output-size, hardcopy streams, etc.)
   ;; Therefore specializing the stream argument may be a temptation worth avoiding.
-  (setf (alu self) (alu-for-stream stream (color self))))
+  (setf (ink self) (ink-for-stream stream (color self))))
 
 (defmethod display-data :before ((self graph-data-color-mixin) (stream t) (graph t))
-  (update-alu-for-stream self stream))
+  (update-ink-for-stream self stream))
 
 (defmethod display-legend-dataset :before ((self graph-data-color-mixin)
 					   STREAM graph left bottom width height)
   (declare (ignore graph left bottom width height))
-  (update-alu-for-stream self stream))
+  (update-ink-for-stream self stream))
 
 
 #|
@@ -754,21 +575,21 @@ way.  The graph takes the union of the limits returned.
   ((auto-scale? :initform nil :initarg :auto-scale? :accessor auto-scale?))
   (:documentation "Allows a dataset to provide auto scale limits"))
 
-(defmethod auto-scale-limits ((self t) auto-scale-type xll xur yll yur)
+(defmethod auto-scale-limits ((self t) auto-scale-type x-min x-max y-min y-max)
   ;; Default method
-  (declare (ignore auto-scale-type xll xur yll yur))
+  (declare (ignore auto-scale-type x-min x-max y-min y-max))
   (list nil nil nil nil))
 
 (defmethod auto-scale-limits ((self graph-data-auto-scale-mixin)
-			      auto-scale-type xll xur yll yur)
+			      auto-scale-type x-min x-max y-min y-max)
   "Scale graph to minimum and maximum of x axis, y axis or both.  
    If :BOTH the x and y limits will be set to the min or max values in data.
-   If :X the min and max value of x for data with y values between yll
-   and yur will be used. Similarly for :Y.
-   The LIST (xmin xmax ymin ymax) describing the limits is returned."
+   If :X the min and max value of x for data with y values between y-min
+   and y-max will be used. Similarly for :Y.
+   The LIST (x-min x-max y-min y-max) describing the limits is returned."
   (cond ((not (auto-scale? self)) nil)
 	(auto-scale-type
-	 (auto-scale-limits-internal self auto-scale-type xll xur yll yur
+	 (auto-scale-limits-internal self auto-scale-type x-min x-max y-min y-max
 			     (data self)))))
 
 (defmethod auto-scale-limits-internal ((self graph-data-auto-scale-mixin)
@@ -804,10 +625,10 @@ way.  The graph takes the union of the limits returned.
 (defmethod limit-specs ((self GRAPH-DATA-LIMITS-MIXIN)) ())
 
 (defmethod AUTO-SCALE-LIMITS :around ((self graph-data-limits-mixin)
-				      auto-scale-type xll xur yll yur)
+				      auto-scale-type x-min x-max y-min y-max)
   "Constrain graph edges to be within limits."
   (let ((the-limits (limit-specs self))
-	(stuff (call-next-method SELF auto-scale-type xll xur yll yur)))
+	(stuff (call-next-method SELF auto-scale-type x-min x-max y-min y-max)))
     (let ((xmin (first stuff))
 	  (xmax (second stuff))
 	  (ymin (third stuff))
@@ -837,16 +658,15 @@ way.  The graph takes the union of the limits returned.
   (vector-push-extend datum (data self)))
 
 (defmethod display-datum ((self GRAPH-DATA-ADD-DATUM-MIXIN) graph STREAM datum displayer)
-  (let ((H (stream-height stream)))
-    (multiple-value-bind (x y) (datum-position self datum)
-      (multiple-value-setq (x y) (xy-to-uv graph x y))
-      (funcall (the compiled-function displayer) stream x (- H (the fixnum y)) datum))))
-  
+  (multiple-value-bind (x y) (datum-position self datum)
+    (with-xy-coordinates (self stream)
+      (funcall (the compiled-function displayer) stream x y datum))))
+
 (defmethod prepare-graph-for-datum ((self GRAPH-DATA-ADD-DATUM-MIXIN) graph stream datum displayer)
   "Here is your chance to scroll the graph, if necessary, before displaying."
   (when (and graph (not
 		    (multiple-value-bind (x y) (datum-position self datum)
-		      (is-inside graph x y))))
+		      (region-contains-position-p (xy-rectangle graph) x y))))
     ;; see method AUTO-SCALE-EXTENSIONS
     (setf (auto-scale-needed graph) t)
     (refresh graph STREAM)
@@ -1027,8 +847,7 @@ way.  The graph takes the union of the limits returned.
 	(dolist (point points xy)
 	  (let ((x (car point))
 		(y (second point)))
-	    (multiple-value-setq (x y) (screen-to-uv stream x y))
-	    (multiple-value-setq (x y) (uv-to-xy graph x y))
+	    (multiple-value-setq (x y) (stream-to-xy graph x y))
 	    (push (list x y) xy))))))
 
 
@@ -1065,7 +884,7 @@ way.  The graph takes the union of the limits returned.
 (defmethod display-legend-dataset :around ((self presentable-data-mixin) STREAM
 					   graph left bottom width height)
   ;; you always get the legend mouse-sensitive.
-  (multiple-value-bind (sl st) (uv-to-screen stream left (+ bottom height))
+  (multiple-value-bind (sl st) (rs-to-stream graph left (+ bottom height))
     ;; see comment above regarding cursor positioning
     (with-temporary-cursor-position (stream sl st)				
       (with-output-as-presentation

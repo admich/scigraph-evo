@@ -64,11 +64,6 @@ advised of the possiblity of such damages.
   (set-stream-position self stream x y)
   (display self stream))
 
-(defmethod erase-at ((self moving-object) stream x y)
-  (declare (ignore x y))
-  ;; No need to set position here, it should be the same as the last draw.
-  (erase self stream))
-
 (defmethod drag-object ((self moving-object) STREAM &optional mouse-line initial-x initial-y)
   "Drag the object around by tracking the mouse."
   ;;(declare (values stream-x stream-y button))
@@ -82,9 +77,9 @@ advised of the possiblity of such damages.
   (multiple-value-setq (initial-x initial-y)
     ;; Do this even if stream-set-pointer-position* was just called,
     ;; because that doesn't always seem to work (clim 1.0).  jpm.
-    (stream-pointer-position* stream))
+    (stream-pointer-position stream))
   (let ((stream-x initial-x)
-	(stream-y initial-y))
+        (stream-y initial-y))
     ;; Give object a chance to notice its initial position.
     (set-stream-position self stream stream-x stream-y)
     ;; Start tracking.
@@ -92,12 +87,10 @@ advised of the possiblity of such damages.
 	(drag-icon stream
 		   #'(lambda (str)
 		       (draw-at self str stream-x stream-y))
-		   #'(lambda (str)
-		       (erase-at self str stream-x stream-y))
 		   #'(lambda (dx dy)
 		       (incf stream-x dx)
 		       (incf stream-y dy))
-		   mouse-line)
+	    	   mouse-line)
       (values stream-x stream-y button))))
 
 ;;; Need some stubs to put constraint checking.
@@ -112,7 +105,8 @@ advised of the possiblity of such damages.
 	(before-motion self stream)
 	(drag-object self stream)
 	(after-motion self stream))
-    (display self STREAM)))
+    (with-rs-coordinates ((graph self) stream) (display self STREAM))
+    ))
 
 (define-graph-command com-move-object ((object 'invisible-object) (window 'sheet))
   "Reposition an object, such as an annotation."
@@ -135,24 +129,21 @@ advised of the possiblity of such damages.
   (declare (ignore constrain-p))
   (with-slots (x y) object (setq x newx y newy)))
 
-(defmethod uv-position ((object moving-point))
+(defmethod rs-position ((object moving-point))
   (multiple-value-bind (x y) (xy-position object)
-    (xy-to-uv (graph object) x y)))
+    (xy-to-rs (graph object) x y)))
 
-(defmethod set-uv-position ((self moving-point) x y &optional constrain-p)
-  (declare (ignore constrain-p))
-  (multiple-value-setq (x y) (uv-to-xy (graph self) x y))
-  (set-xy-position self x y))
+(defmethod set-rs-position ((self moving-point) r s &optional constrain-p)
+  (multiple-value-bind (x y) (rs-to-xy (graph self) r s)
+    (set-xy-position self x y)))
 
 (defmethod set-stream-position ((self moving-point) stream x y)
-  (multiple-value-setq (x y) (screen-to-uv stream x y))
-  (multiple-value-setq (x y) (uv-to-xy (graph self) x y))
+  (multiple-value-setq (x y) (stream-to-xy (graph self) x y))
   (set-xy-position self x y))
 
 (defmethod stream-position ((self moving-point) stream)
   (multiple-value-bind (x y) (xy-position self)
-    (multiple-value-setq (x y) (xy-to-uv (graph self) x y))
-    (uv-to-screen stream x y)))
+    (xy-to-stream (graph self) x y)))
 
 (defclass moving-polygon (moving-object)
     ((corners :initform nil :initarg :corners :accessor corners)
@@ -168,27 +159,25 @@ advised of the possiblity of such damages.
 (defmethod graph ((object moving-polygon))
   (error "A missing method GRAPH was detected."))
 
-(defmethod draw-xy-polygon ((object moving-polygon) stream &optional (alu %draw))
+(defmethod draw-xy-polygon ((object moving-polygon) stream &optional (ink +foreground-ink+))
   (let ((graph (graph object)))
     (with-clipping-to-graph (graph stream t)
       (map-polygon-edges
 	#'(lambda (x1 y1 x2 y2)
-	    (multiple-value-setq (x1 y1) (xy-to-uv graph x1 y1))
-	    (multiple-value-setq (x2 y2) (xy-to-uv graph x2 y2))
-	    (device-draw-line stream x1 y1 x2 y2 :alu alu))
+	    (multiple-value-setq (x1 y1) (xy-to-stream graph x1 y1))
+	    (multiple-value-setq (x2 y2) (xy-to-stream graph x2 y2))
+        (with-local-coordinates (stream 0 0)
+          (draw-line* stream x1 y1 x2 y2 :ink ink)))
 	(corners object)))))
 
 (defmethod set-stream-position ((self moving-polygon) stream x y)
-  (multiple-value-setq (x y) (screen-to-uv stream x y))
-  (multiple-value-setq (x y) (uv-to-xy (graph self) x y))
+  (multiple-value-setq (x y) (stream-to-xy (graph self) x y))
   (let ((corner (motion-corner self)))
     (setf (first corner) x (second corner) y)))
 
 (defmethod stream-position ((self moving-polygon) stream)
   (let ((corner (motion-corner self)))
-    (multiple-value-bind (u v)
-	(xy-to-uv (graph self) (first corner) (second corner))
-      (uv-to-screen stream u v))))
+    (xy-to-stream (graph self) (first corner) (second corner))))
 
 (defun closest-point (u v mapper points)
   "Map over a set of points to find the nearest one."
@@ -213,14 +202,14 @@ advised of the possiblity of such damages.
     (setq stream-x (truncate stream-x))
     (setq stream-y (truncate stream-y))
     (let ((graph (graph self)))
-      (multiple-value-bind (x y) (screen-to-uv stream stream-x stream-y)
+      (multiple-value-bind (x y) (stream-to-rs (graph self) stream-x stream-y)
 	(setf (motion-corner self)
 	      (closest-point
 		x y
 		#'(lambda (function points)
 		    (dolist (point points)
 		      (let ((x0 (car point)) (y0 (cadr point)))
-			(multiple-value-setq (x0 y0) (xy-to-uv graph x0 y0))
+			(multiple-value-setq (x0 y0) (xy-to-rs graph x0 y0))
 			(funcall function x0 y0 point))))
 		(corners self)))))))
 
@@ -277,8 +266,7 @@ advised of the possiblity of such damages.
 
 (defmethod set-stream-position ((self basic-slider) stream newx newy)
   "Set stream coordinates of object."
-  (multiple-value-setq (newx newy) (screen-to-uv stream newx newy))
-  (multiple-value-setq (newx newy) (uv-to-xy (car (slider-graphs self)) newx newy))
+  (multiple-value-setq (newx newy) (stream-to-xy (car (slider-graphs self)) newx newy))
   (setf (slider-x self) newx (slider-y self) newy)
   (multiple-value-bind (left bottom right top) (bounds self)
     (constrain-position self left bottom right top))
@@ -295,8 +283,7 @@ advised of the possiblity of such damages.
 (defmethod TRACK ((self basic-slider) WINDOW &optional mouse-line)
   (multiple-value-bind (x y button)
       (drag-object self WINDOW mouse-line)
-    (multiple-value-setq (x y) (screen-to-uv window x y))
-    (multiple-value-setq (x y) (uv-to-xy (car (slider-graphs self)) x y))
+    (multiple-value-setq (x y) (transform-position (stream-to-xy-transformation (car (slider-graphs self))) x y))
     (values x y button)))
 
 
@@ -310,9 +297,8 @@ advised of the possiblity of such damages.
 
 (defmethod stream-position ((self crosshairs) stream)
   (let ((x (slider-x self))
-	(y (slider-y self)))
-    (multiple-value-setq (x y) (xy-to-uv (car (slider-graphs self)) x y))
-    (uv-to-screen stream x y)))
+        (y (slider-y self)))
+    (xy-to-stream (car (slider-graphs self)) x y)))
 
 (defmethod compute-labels ((self crosshairs))
   (setf (x-label self) (float-to-string (slider-x self) *max-digits* (x-label self)))
@@ -322,42 +308,35 @@ advised of the possiblity of such damages.
   (declare (ignore stream newx newy))
   (compute-labels self))
 
-(defmethod DRAW-CROSSHAIRS ((self crosshairs) stream graph x y alu)
+(defmethod DRAW-CROSSHAIRS ((self crosshairs) stream graph x y ink)
   "Draw the horizontal and vertical lines but no labels"
-  (multiple-value-bind (ull uur vll vur) (uv-inside graph)
-    (multiple-value-setq (x y) (xy-to-uv graph x y))
-    (multiple-value-setq (ull vll) (uv-to-screen stream ull vll))
-    (multiple-value-setq (uur vur) (uv-to-screen stream uur vur))
-    (multiple-value-setq (x y) (uv-to-screen stream x y))
-    (when (slider-y? self) (draw-line x vll x vur :stream stream :alu alu))
-    (when (slider-x? self) (draw-line ull y uur y :stream stream :alu alu))))
+  (with-slots (x-max x-min y-max y-min) graph
+   (with-xy-coordinates (graph stream)
+     (when (slider-y? self) (draw-line* stream x y-min x y-max :ink ink))
+     (when (slider-x? self) (draw-line* stream x-min y x-max y :ink ink)))))
 
-(defmethod DRAW-SLIDER-X-LABEL ((self crosshairs) graph STREAM alu value text)
+(defmethod DRAW-SLIDER-X-LABEL ((self crosshairs) graph STREAM ink value text)
   (or text (setq text (float-to-string value (x-digits graph))))
-  (multiple-value-bind (u v) (xy-to-uv graph value (yll graph))
-    (multiple-value-setq (u v) (uv-to-screen stream u v))
-    (incf v (* 2 (stream-line-height stream)))
-    (draw-string text u v :stream stream :alu alu)))
+  (with-xy-coordinates (graph stream)
+    (draw-text* stream text value (y-min graph) :ink ink :align-y :top :align-x :center)))
 
-(defmethod DRAW-SLIDER-Y-LABEL ((self crosshairs) graph STREAM alu value text)
+(defmethod DRAW-SLIDER-Y-LABEL ((self crosshairs) graph STREAM ink value text)
   (or text (setq text (float-to-string value (y-digits graph))))
-  (multiple-value-bind (u v) (xy-to-uv graph (xll graph) value)
-    (multiple-value-setq (u v) (uv-to-screen stream u v))
-    (setq u (max 0 (- u (string-size stream nil text))))
-    (draw-string text u v :stream stream :alu alu)))
+  (with-xy-coordinates (graph stream)
+    (draw-text* stream text (x-min graph) value :ink ink :align-y :center :align-x :right)))
 
 (defmethod DRAW-INTERNAL ((self crosshairs) STREAM x y &optional (labels? t))
   ;; Only draw labels on the "head" graph -- seemed to take to long otherwise (RBR)
   (with-slots (graphs) self
-    (let ((alu %flip))
+    (let ((ink +foreground-ink+))
       (dolist (g graphs)
-	(draw-crosshairs self stream g x y alu))
+	(draw-crosshairs self stream g x y ink))
       (when labels?
 	(let ((graph (car graphs)))
 	  (when (slider-x? self)
-	    (draw-slider-x-label self graph STREAM alu x (x-label self)))
+	    (draw-slider-x-label self graph STREAM ink x (x-label self)))
 	  (when (slider-y? self)
-	    (draw-slider-y-label self graph STREAM alu y (y-label self))))))))
+	    (draw-slider-y-label self graph STREAM ink y (y-label self))))))))
 
 (defmethod DISPLAY ((self crosshairs) STREAM)
   (draw-internal self STREAM (slider-x self) (slider-y self) t))
@@ -421,10 +400,8 @@ advised of the possiblity of such damages.
 	  (x2 (slider-x slider2))
 	  (y2 (slider-y slider2)))
       (setq dx (- x2 x1) dy (- y2 y1))
-      (multiple-value-setq (x1 y1) (xy-to-uv (car (slider-graphs self)) x1 y1))
-      (multiple-value-setq (x2 y2) (xy-to-uv (car (slider-graphs self)) x2 y2))
-      (multiple-value-setq (x1 y1) (uv-to-screen stream x1 y1))
-      (multiple-value-setq (x2 y2) (uv-to-screen stream x2 y2))
+      (multiple-value-setq (x1 y1) (xy-to-stream (car (slider-graphs self)) x1 y1))
+      (multiple-value-setq (x2 y2) (xy-to-stream (car (slider-graphs self)) x2 y2))
       (setq du (- x2 x1) dv (- y2 y1)))))
 
 (defmethod slider-graphs ((self rectangle-slider))
@@ -481,7 +458,7 @@ advised of the possiblity of such damages.
 		     (button-case button :middle (throw 'abort nil)))
 		   (CHOOSE-THE-SECOND-POINT ()
 		     (multiple-value-setq (x2 y2 button)
-		       (with-output-recording-disabled (stream)
+		       (with-output-recording-options (stream :record nil :draw t)
 			 (unwind-protect
 			     (progn (display slider1 stream)
 				    (track slider2 stream string2))
@@ -581,21 +558,21 @@ advised of the possiblity of such damages.
   (unless (zoom-stack self) (call-next-method)))
 
 (defmethod choose-xy-rectangle (graph stream)
-  (multiple-value-bind (left top right bottom button)
-      (device-specify-rectangle stream)
+  (multiple-value-bind (left top right bottom)
+      (with-pointer-cursor (stream :position)
+        (pointer-input-rectangle* :stream stream))
     (when left
-      (multiple-value-setq (left top) (uv-to-xy graph left top))
-      (multiple-value-setq (right bottom) (uv-to-xy graph right bottom))
+      (multiple-value-setq (left top) (stream-to-xy graph left top))
+      (multiple-value-setq (right bottom) (stream-to-xy graph right bottom))
       (values (min left right) (max top bottom)
-	      (max left right) (min top bottom)
-	      button))))
+	      (max left right) (min top bottom)))))
 
 (defmethod zoom-in ((self graph-zoom-mixin) STREAM)
-  (with-slots (xll xur yll yur zoom-stack) self
+  (with-slots (x-min x-max y-min y-max zoom-stack) self
     (multiple-value-bind (x1 y1 x2 y2) (choose-xy-rectangle self stream)
       (when (and x1 y1 x2 y2
 		 (not (= x1 x2)) (not (= y1 y2)))
-	(push (list xll xur yll yur) zoom-stack)
+	(push (list x-min x-max y-min y-max) zoom-stack)
 	(if (< x2 x1) (psetq x1 x2 x2 x1))
 	(if (< y2 y1) (psetq y1 y2 y2 y1))
 	(set-xy-inside self STREAM x1 x2 y1 y2)

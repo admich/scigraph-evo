@@ -40,42 +40,6 @@ advised of the possiblity of such damages.
 		,@body)
 	  ,@elements))
 
-(defun command-pretty-name (string)
-  "COM-SHOW-FILE -> 'Show File'"
-  (cond ((and (> (length string) 4)
-	      (string-equal string "COM-" :end1 4))
-	 (command-pretty-name (subseq string 4)))
-	(t (dotimes (i (length string))
-	     (if (char= (aref string i) #\-)
-		 (setf (aref string i) #\space)))
-	   (dotimes (i (length string))
-	     (cond ((= i 0) (setf (aref string i) (char-upcase (aref string i))))
-		   ((char= (aref string (1- i)) #\space)
-		    (setf (aref string i) (char-upcase (aref string i))))
-		   (t (setf (aref string i) (char-downcase (aref string i))))))
-	   string)))
-
-(defmacro define-command ((command-name &key (command-table :global) 
-					     keystroke
-					     name menu
-					     (provide-output-destination-keyword t))
-			  arguments &body body)
-  `(clim:define-command (,command-name :command-table ,(eval command-table)
-                         :keystroke ,keystroke
-                         :menu ,menu
-                         :name ,(or name
-                                    (command-pretty-name
-                                     (copy-seq (string command-name))))
-                         :provide-output-destination-keyword
-                         ,provide-output-destination-keyword)
-    ,arguments ,@body))
-
-(defun install-command (command-table command-symbol &optional command-name)
-  (or command-name
-      (setq command-name (command-pretty-name (copy-seq (string command-symbol)))))
-  (clim:add-command-to-command-table command-symbol command-table
-                                     :name command-name :errorp nil))
-
 (defun canonicalize-argument-list (list)
   (remove '&key list))
 
@@ -111,54 +75,6 @@ advised of the possiblity of such damages.
     ;; Don't know who's right, but my reading of the spec suggests
     ;; that &key shouldn't be in the argument list. -- moore
     ,(canonicalize-argument-list arguments)
-    ,@body))
-
-(defmacro define-presentation-translator
-    (name
-     (from-type to-type
-      &key (menu t) (gesture :select) command-table
-	   documentation tester do-not-compose)
-     arguments
-     &body body)
-  (setq documentation (canonicalize-documentation documentation)
-	command-table (canonicalize-command-table command-table))
-  (let ((test tester))
-    `(clim:define-presentation-translator
-      ,name
-      (,from-type ,to-type ,command-table
-       :tester ,(if test (cons (canonicalize-argument-list (car test))
-                               (cdr test)))
-       :gesture ,gesture
-       :menu ,menu
-       :tester-definitive ,do-not-compose
-       :documentation ,documentation)
-      ,arguments
-      ,@body)))
-
-(defmacro define-presentation-action
-    (name
-     (from-type to-type &key command-table gesture tester documentation (menu t))
-     arglist
-     &body body)
-  ;; This is similar to define-presentation-translator, except that the body of the
-  ;; action is not intended to return a value, but should instead side-effect some
-  ;; sort of application state.
-  ;;
-  ;; D. Moon says actions should be used not to side-effect the application state,
-  ;; but rather to do something to the display.  It has to make sense while in the
-  ;; middle of parsing a command (i.e. expand ellipsis), otherwise it should be a
-  ;; presentation-to-command-translator.
-  #+genera (declare (zwei:indentation 1 2 3 1))
-  (setq documentation (canonicalize-documentation documentation)
-	command-table (canonicalize-command-table command-table))
-  `(clim:define-presentation-action
-    ,name
-    (,from-type ,to-type ,command-table
-     :gesture ,gesture
-     :tester ,(if tester (cons (canonicalize-argument-list (car tester))
-                               (cdr tester)))
-     :menu ,menu :documentation ,documentation)
-    ,arglist
     ,@body))
 
 (defmacro define-presentation-type (name arglist
@@ -263,25 +179,10 @@ advised of the possiblity of such damages.
      :single-box ,single-box :record-type ,record-type)
     ,@body))
 
-(defmacro with-output-as-graphics-presentation
-	  ((&key stream object type single-box (allow-sensitive-inferiors t)
-		 dont-snapshot-variables)
-	   &body body)
-  stream object type single-box allow-sensitive-inferiors
-  dont-snapshot-variables body
-  (error "WITH-OUTPUT-AS-GRAPHICS-PRESENTATION is not supported. ~
-          Use WITH-OUTPUT-AS-PRESENTATION instead"))
-
 (defmacro with-output-truncation ((stream) &body body)
   `(clim:with-end-of-line-action
     (,stream :allow)
     (clim:with-end-of-page-action (,stream :allow) ,@body)))
-
-(defmacro with-output-recording-enabled ((stream &optional (record-p t)) &body body)
-  `(clim:with-output-recording-options (,stream :record ,record-p :draw t) ,@body))
-
-(defmacro with-output-recording-disabled ((stream) &body body)
-  `(with-output-recording-enabled (,stream nil) ,@body))
 
 (defmacro with-redisplayable-output
 	  ((&key stream
@@ -300,24 +201,6 @@ advised of the possiblity of such damages.
 	       ,@body)
 	      (progn ,@body)))
 
-(defmacro with-character-face ((face &optional (stream t)) &body body)
-  `(clim:with-text-face (,stream ,face) ,@body))
-
-(defmacro with-text-face ((face stream) &body body)
-  `(with-character-face (,face ,stream) ,@body))
-
-(defmacro with-character-style ((style &optional (stream t)) &body body)
-  `(clim:with-text-style (,stream ,style) ,@body))
-
-(defmacro with-text-style ((style stream) &body body)
-  `(with-character-style (,style ,stream :bind-line-height t) ,@body))
-
-(defmacro with-character-size ((style &optional (stream t)) &body body)
-  `(clim:with-text-size (,stream ,style) ,@body))
-
-(defmacro with-character-family ((family &optional (stream t)) &body body)
-  `(clim:with-text-family (,stream ,family) ,@body))
-
 (defmacro accepting-values ((stream &key own-window label (abort-value :ABORT)
 				    (exit-boxes ''((:exit "   OK   ")
 						   (:abort "   Cancel   "))))
@@ -334,12 +217,19 @@ advised of the possiblity of such damages.
                          ;; in some nonrandom location
                          :x-position 200
                          :y-position 200
-                         ,@(when (fboundp (intern "COLOR-STREAM-P" 'clim))
-                             ;; Scroll bars don't work till clim 2.0.beta2.
-                             `(:scroll-bars :both)))
+                         :scroll-bars :both)
               ,@body)
           (abort () :abort)))
     ;; If you quit using a keyboard accelerator, clim leaves the keystroke
     ;; in the input buffer (clim bug).
     ,abort-value t))
 
+(defmacro for-each-frame ((symbol) &body body)
+  "Iteratively bind SYMBOL to all enabled frames."
+  `(clim:map-over-ports
+    #'(lambda (port)
+        (unless (eq (clim:port-type port) :postscript)
+          (dolist (,symbol (clim:frame-manager-frames
+                            (clim:find-frame-manager :port port)))
+            (when (member (clim:frame-state ,symbol) '(:shrunk :enabled))
+              ,@body))))))

@@ -33,16 +33,6 @@ advised of the possiblity of such damages.
   "Round x down modulo d."
   (- x (mod x d)))
 
-(defun hypot (x y)
-  "Computes the hypotenuse of a right triangle with sides of length X and Y.
-   Ie. (sqrt (+ (expt x 2) (expt y 2))) done carefully."
-  (when (< x 0.0) (setq x (- x)))
-  (when (< y 0.0) (setq y (- y)))
-  (when (< x y) (psetq x y y x))
-  (cond ((zerop x) 0)
-	((zerop y) x)
-	(t (* x (sqrt (+ 1.0 (* (setq y (/ y x)) y)))))))
-
 (defun AUTOTICK-internal (xmin xmax div max-ticks &rest choices)
   (let ((range (/ (abs (- xmax xmin)) div))
 	(ifac 1.0)
@@ -166,75 +156,34 @@ advised of the possiblity of such damages.
       (push-digits exponent elength string))
     string))
 
-(defun LINEAR-AXIS
-			; Draw a linear axis
-       (xmin ymin	; Axis is drawn between (xmin ymin) and (xmax ymax)
-	     xmax ymax	; on the x-y window. (in pixels)
-	     umin umax	; Axis units corresponding to min and max points
-	     dtick	; Tick spacing in axis units.  
-	     tick-size	; Length of tick in pixels.  Ticks are draw on the
-	                ; left side of axis if tick-size > 0, else right side.
-	     tick-numbering ; Should axis numbers be added?  They are placed
+(defun draw-linear-axis
+    (graph
+     stream
+     major-min major-max	
+     minor
+     direction ;:x :y
+     dtick	; Tick spacing in axis units.  
+     tick-size	; Length of tick in pixels.  Ticks are draw on the
+                                        ; left side of axis if tick-size > 0, else right side.
+     tick-numbering ; Should axis numbers be added?  They are placed
 			    ; on the side of the axis opposite the ticks.
 			    ; Values are NIL, :MINIMAL, or :EACH.
-	     draw-line
-	     axis-number
-	     label)
-  (if (< umax umin) (rotatef umax umin))
-  (if (minusp dtick) (setq dtick (- dtick)))
-  (let* ((cos (- xmax xmin))
-	 (sin (- ymax ymin))
-	 (l (hypot cos sin))
-	 (u-scale (/ l (float (- umax umin))))
-	 (ufirst (+ (down umin dtick) dtick)); U value of first tick mark in from left.
-	 (smallnum (* dtick .1))
-	 (-smallnum (- smallnum))
-	 u-tick
-	 v-tick)
-    (declare (short-float u-scale))
-    (setq cos (/ cos l))	; line of axis is x*sin - y*cos + b = 0
-    (setq sin (/ sin l))
-    (when (and (not (zerop ufirst))
-	       (< (/ (abs ufirst) dtick) 0.001))
-      ;; UFIRST wants to be 0 but isn't due to roundoff.
-      (setq ufirst 0.0))	; Make it 0.
-    (cond ((< (abs (- ufirst umin)) (* 0.1 dtick))
-	   (setq ufirst (+ ufirst dtick))))
-    (setq u-tick (values (truncate (* tick-size (- sin)))))
-    (setq v-tick (values (truncate (* tick-size cos))))
-    (funcall draw-line xmin ymin xmax ymax)	; Axis line.
-    ;; Float these so our declarations are correct.
-    (or (floatp ufirst) (setq ufirst (float ufirst)))
-    (or (floatp dtick) (setq dtick (float ufirst)))
-    (or (floatp umin) (setq umin (float umin)))
-    (macrolet
-	((x-along (u) ;; x and y point u along line x*sin - y*cos + b = 0
-	   `(+ xmin (* cos (values (round (* u-scale
-					     (- (the short-float ,u)
-						(the short-float umin))))))))
-	 (y-along (u) `(+ ymin (* sin (values (round (* u-scale
-							(- (the short-float ,u)
-							   (the short-float umin))))))))
-	 (~= (a b) `(<= -smallnum (- ,a ,b) smallnum)))
-      (do* ((u ufirst (+ u dtick))	; Place tick marks
-	    (ulast (let ((ulast (down umax dtick)))
-		     ;; Tick inside right edge of axis.
-		     (if (< (abs (- ulast umax)) (* 0.1 dtick))
-			 (- ulast dtick)
-		       ulast))))
-	  ((> u umax))
-	(when (or (and (eq tick-numbering :minimal)
-		       (or (~= u ufirst) (~= u ulast)))
-		  (and (eq tick-numbering :each) (<= ufirst u ulast)))
-	  (funcall axis-number (x-along u) (y-along u) 
-		   (if (< (/ (abs u) dtick) 0.001) ; u wants to be 0
-		       0
-		     u)))
-	(let ((x (x-along u))
-	      (y (y-along u)))
-	  (funcall draw-line x y (+ x u-tick) (+ y v-tick)))))
-    (if label (funcall label
-		       (values (round (+ xmin xmax) 2))
-		       (values (round (+ ymin ymax) 2))))
-    ))
+     axis-number)
+  (let* ((first-tick (+ (down major-min dtick) dtick)))
+    (with-xy-coordinates (graph stream)
+      (if (equal direction :y)
+          (draw-line* stream minor major-min minor major-max)
+          (draw-line* stream major-min minor major-max minor)))
+    (loop for tick from first-tick below major-max by dtick do
+         (with-xy-coordinates (graph stream)
+           (if (equal direction :y)
+              (draw-line* stream minor tick (+ minor tick-size) tick)
+              (draw-line* stream tick minor tick (+ minor tick-size))))
+         (when axis-number
+           (if (equal direction :y)
+               (multiple-value-bind (x y) (xy-to-rs graph minor tick)
+                 (funcall axis-number x y tick))
+               (multiple-value-bind (x y) (xy-to-rs graph tick minor)
+                 (funcall axis-number x y tick)))
+           ))))
 

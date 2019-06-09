@@ -110,6 +110,12 @@ advised of the possiblity of such damages.
 	    (funcall function p1)
 	    (psetq p1 p2 p2 p1)))))
 
+(defmethod nearest-datum :around (graph (dataset equation-data) r s)
+  "Return the x,y datum nearest the given r,s coordinates."
+  ;; Do this in uv coordinates, because what matters is what looks close on the
+  ;; screen, not what seems close in x,y space.
+  (multiple-value-bind (x y datum) (call-next-method)
+    (values x y (list x y))))
 
 (defmethod datum-presentation ((self equation-data) datum)
   (multiple-value-bind (x y) (datum-position self datum)

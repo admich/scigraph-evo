@@ -42,24 +42,26 @@ advised of the possiblity of such damages.
 
 (defmethod compute-mouse-resolution ((self graph-mouse-resolution-mixin))
   ;;This method provides at least 1 pixel accuracy.
-  (with-slots (dx-mouse dy-mouse x-u-scale y-v-scale) self
-    (setq dx-mouse (expt 10.0 (values (floor (log (/ x-u-scale) 10))))
-	  dy-mouse (expt 10.0 (values (floor (log (/ y-v-scale) 10)))))))
+  (with-slots (dx-mouse dy-mouse) self
+    (setq dx-mouse (expt 10.0 (values (floor (log (/ (x-scale self)) 10))))
+          dy-mouse (expt 10.0 (values (floor (log (/ (y-scale self)) 10)))))))
 
-(defmethod uv-to-xy :around ((self graph-mouse-resolution-mixin) u v)
+(defmethod initialize-instance :after ((self graph-mouse-resolution-mixin) &key)
+  (compute-mouse-resolution self))
+
+(defmethod rs-to-xy :around ((self graph-mouse-resolution-mixin) r s)
   (with-slots (dx-mouse dy-mouse) self
     (multiple-value-bind (x y)
-	(call-next-method self u v)
+        (call-next-method self r s)
       (values (* (values (round x dx-mouse)) dx-mouse)
-	      (* (values (round y dy-mouse)) dy-mouse)))))
+          (* (values (round y dy-mouse)) dy-mouse)))))
 
 
-;;; This should probably be several mixins, its gaining a lot of baggage...
-(defclass GRAPH-BORDER-MIXIN (basic-graph named-mixin) 
-  ((show-border :initform t :initarg :show-border :accessor show-border)	
+
+(defclass graph-border-mixin (basic-graph)
+  ((show-border :initform t :initarg :show-border :accessor show-border)
    (tick-size :initform 7. :initarg :tick-size)	   ;In pixels.
-   (title :initform nil :initarg :title :reader title) ;Title centered
-   
+   (title :initform nil :initarg :title :accessor title) ;Title centered
    (x-label :initform nil :initarg :x-label        ;Label for left x axis.
 	    :accessor x-label)
    (x-digits :initform 6 :initarg :x-digits :accessor x-digits)
@@ -80,6 +82,25 @@ advised of the possiblity of such damages.
 
   (:documentation "Simple Border and axis labeling."))
 
+(defmethod (setf x-dtick) (arg (self graph-border-mixin))
+  (declare (ignore arg))
+  (with-slots (x-auto-tick) self
+    (setq x-auto-tick nil)))
+
+(defmethod (setf y-dtick) (arg (self graph-border-mixin))
+  (declare (ignore arg))
+  (with-slots (y-auto-tick) self
+    (setq y-auto-tick nil)))
+
+(defmethod COMPUTE-MARGINS :around ((self graph-border-mixin) stream)
+  (multiple-value-bind (left top right bottom) (call-next-method)
+    (with-slots (x-tick-numbering) self
+      (values (+ left (stream-line-height stream) (* *max-digits* (stream-character-width stream)))
+              (+ (* 2 (stream-line-height stream)) top) ; space for title
+              (+ (stream-character-width stream) right)	; 1 character right
+              (+ (* (if x-tick-numbering 3 2)	; X numbers and label
+                    (stream-line-height stream)) bottom))))) 
+
 (defmethod initialize-instance :after ((self graph-border-mixin)
 					&key &allow-other-keys)
   (with-slots (title) self
@@ -93,106 +114,37 @@ advised of the possiblity of such damages.
 		  ((symbolp new-title) (string new-title))
 		  (t (format nil "~a" new-title)))))))
 
-(defmethod (setf x-dtick) (arg (self graph-border-mixin))
-  (declare (ignore arg))
-  (with-slots (x-auto-tick) self
-    (setq x-auto-tick nil)))
-
-(defmethod (setf y-dtick) (arg (self graph-border-mixin))
-  (declare (ignore arg))
-  (with-slots (y-auto-tick) self
-    (setq y-auto-tick nil)))
-
-(defmethod COMPUTE-MARGINS :around ((self GRAPH-BORDER-MIXIN) STREAM)
-  (multiple-value-bind (left right bottom top) (call-next-method)
-    (with-slots (x-tick-numbering) self
-      (values left	
-	      (+ (stream-character-width stream) right)	; 1 character right
-	      (+ (* (if x-tick-numbering 3 2)	; X numbers and label
-		    (stream-line-height stream)) bottom)
-	      (+ (* 2 (stream-line-height stream)) top))))) ; title + 1
-
-(defmethod axis-number-horizontal ((self GRAPH-BORDER-MIXIN) STREAM
-				   x y number-string the-tick-size)
-  "Put a centered number string at current u v position on a horizontal axis."
-  (multiple-value-bind (cu cv)
-      (char-position-relative-to-uv
-	self STREAM x y (- (* (length number-string) 0.5))
-	(if (> the-tick-size 0) -1.0 0.5) 0)
-    (text self STREAM cu cv number-string :alu %draw)))
-
-(defmethod axis-number-vertical ((self GRAPH-BORDER-MIXIN) STREAM
-				 x y number-string the-tick-size)
-  "Put a centered number string at current u v position on a vertical axis."
-  (multiple-value-bind (cu cv)		; Y axis.
-      (char-position-relative-to-uv
-       self STREAM x y (if (> the-tick-size 0) 0.5
-			   (- (+ (length number-string) 0.5))) -.5 0)
-    (setq cu (max 10 cu))		; Make sure it fits on window!?
-    (text self STREAM cu cv number-string :alu %draw)))
-
-(defmethod AXIS-LABEL-HORIZONTAL ((self GRAPH-BORDER-MIXIN) STREAM
-				  x y label the-tick-size)
-  ;; Put label centered below numbers
-  (with-slots (x-tick-numbering) self
-    (multiple-value-bind (cu cv)
-	(char-position-relative-to-uv
-	  self STREAM x y (- (* (length label) 0.5))
-	  (if (< the-tick-size 0) 1.5
-	     (if (null x-tick-numbering) -1.0 -2.0))
-	  0)
-      (text self STREAM cu cv label :alu %draw))))
-
-(defmethod AXIS-LABEL-VERTICAL ((self GRAPH-BORDER-MIXIN) STREAM
-				x y label the-tick-size)
-  (declare (ignore the-tick-size))
-  (with-slots (y-tick-numbering) self
-    (do ((x-char (if (null y-tick-numbering) -2.0 
-		     (+ 3 (- (/ (left-margin-size self)
-				(stream-character-width STREAM))))))
-	 (y-char (- (* (length label) 0.5) 1.0)  (- y-char 1.0))
-	 (ichar 0 (1+ ichar)))
-	((>= ichar (length label)) nil)
-      (multiple-value-bind (cu cv)
-	  (char-position-relative-to-uv self STREAM x y x-char y-char 0)
-	(text self STREAM cu cv (aref label ichar) :alu %draw)))))
 
 ;;; These methods determine what the tick spacing should be.
-(defmethod x-tick-spacing ((self GRAPH-BORDER-MIXIN))
-  (with-slots (x-auto-tick xll xur x-dtick) self
-    (if x-auto-tick (auto-tick xll xur) x-dtick)))
+(defmethod x-tick-spacing ((self graph-border-mixin))
+  (with-slots (x-auto-tick x-min x-max x-dtick) self
+    (if x-auto-tick (auto-tick x-min x-max) x-dtick)))
 
-(defmethod y-tick-spacing ((self GRAPH-BORDER-MIXIN))
-  (with-slots (y-auto-tick yll yur y-dtick) self
-    (if y-auto-tick (auto-tick yll yur) y-dtick)))
+(defmethod y-tick-spacing ((self graph-border-mixin))
+  (with-slots (y-auto-tick y-min y-max y-dtick) self
+    (if y-auto-tick (auto-tick y-min y-max) y-dtick)))
 
 (defmethod display-x-label ((self graph-border-mixin) stream)
-  (with-slots (ull uur vll tick-size) self
-    (let ((label (x-label self))
-	  (x (values (round (+ ull uur) 2)))
-	  (y vll))
+  (with-slots (tick-size) self
+    (let* ((label (x-label self))
+           (inside-box (inside-box self))
+           (x (/ (rectangle-width inside-box) 2))
+           (y (+ (stream-line-height stream) (rectangle-height inside-box))))
       (when label
-	(axis-label-horizontal self STREAM x y
-			       label tick-size)))))
+        (draw-text* stream label x y :align-x :center :align-y :top)))))
 
 (defmethod display-y-label ((self graph-border-mixin) stream)
-  (with-slots (ull vll vur tick-size) self
-    (let ((label (y-label self))
-	  (x ull)
-	  (y (values (round (+ vll vur) 2))))
-      (when label
-	(axis-label-vertical self STREAM x y label
-			     tick-size)))))
+  (let* ((label (y-label self))
+         (inside-box (inside-box self))
+         (x (* -1 *max-digits* (stream-character-width stream)))
+         (y (/ (rectangle-height inside-box) 2)))
+    (when label
+      (draw-text* stream label x y :align-x :center :transform-glyphs t :transformation (make-rotation-transformation* (/ pi -2 ) x y )))))
 
 (defmethod display-title ((self graph-border-mixin) STREAM)
-  (with-slots (uur ull vur) self
-    (let (the-title)
-      (when (setq the-title (title self))
-	(multiple-value-bind (cu cv)
-	    (char-position-relative-to-uv self STREAM
-					  (values (truncate (+ uur ull) 2)) vur
-					  (- (/ (length the-title) 2.0)) 0.5 0)
-	  (text self STREAM cu cv the-title :alu %draw))))))
+  (alexandria:when-let ((the-title (title self)))
+    (with-slots (width) self
+      (draw-text* stream  the-title  (/ width 2) -1 :align-x :center :align-y :bottom :ink +foreground-ink+))))
 
 (defmethod display-labels ((self graph-border-mixin) stream)
   (display-x-label self stream)
@@ -202,167 +154,77 @@ advised of the possiblity of such damages.
 
 (defmethod display-border ((self graph-border-mixin) STREAM)
   (when (show-border self)
-    (with-clipping-to-graph (self STREAM nil)
-      (let* ((visible (visible-borders self))
-	     (drawer (make-optimized-line-displayer %draw 1 t))
-	     (line-drawer
-	      #'(lambda (x1 y1 x2 y2)
-		  (multiple-value-setq (x1 y1) (uv-to-screen stream x1 y1))
-		  (multiple-value-setq (x2 y2) (uv-to-screen stream x2 y2))
-		  (funcall drawer stream x1 y1 x2 y2))))
-	(when (member :right visible)
-	  (display-right-border self STREAM line-drawer))
-	(when (member :top visible)
-	  (display-top-border self STREAM line-drawer))
-	(when (member :left visible)
-	  (display-left-border self STREAM line-drawer))
-	(when (member :bottom visible)
-	  (display-bottom-border self STREAM line-drawer))
-	(when (member :zero-abcissa visible)
-	  (display-zero-abcissa self stream line-drawer))
-	(when (member :zero-ordinate visible)
-	  (display-zero-ordinate self stream line-drawer))
-	(force-output stream)
-	))))
+    (let* ((visible (visible-borders self)))
+        (when (member :right visible)
+          (display-right-border self STREAM nil))
+        (when (member :top visible)
+          (display-top-border self STREAM nil))
+        (when (member :left visible)
+          (display-left-border self STREAM nil))
+        (when (member :bottom visible)
+          (display-bottom-border self STREAM nil))
+        (when (member :zero-abcissa visible)
+          (display-zero-abcissa self stream nil))
+        (when (member :zero-ordinate visible)
+          (display-zero-ordinate self stream nil))
+        (force-output stream))))
 
 (defmethod DISPLAY-ZERO-ABCISSA ((self GRAPH-BORDER-MIXIN) STREAM line-drawer)
-  (with-slots (tick-size ull vll uur xll xur x-tick-numbering)
-      self
-    (let ((dtick (x-tick-spacing self))
-	  (dtick-size tick-size))
-      (multiple-value-bind (u0 v0) (xy-to-uv self 0 0)
-	(declare (ignore u0))
-	(linear-axis ull v0 uur v0 xll xur dtick 
-		     tick-size x-tick-numbering line-drawer
-		     #'(lambda (x y number)
-			 (axis-number-horizontal
-			  self STREAM
-			 (if (zerop number) (+ x (stream-character-width stream)) x)
-			  y
-			  (float-to-string number (x-digits self))
-			  dtick-size))
-		     nil)))))
+  (with-slots (x-min x-max tick-size x-tick-numbering) self
+    (let* ((dtick (x-tick-spacing self))
+           (tick-size (/ tick-size (y-scale self))))
+      (draw-linear-axis self stream x-min x-max 0 :x dtick tick-size x-tick-numbering
+                        #'(lambda (r s number)
+                            (draw-text* stream
+                                        (float-to-string number (x-digits self))
+                                        (if (zerop number) (+ r (/ (stream-character-width stream) (x-scale self))) r)
+                                        s
+                                        :align-x :center :align-y :top))))))
 
-
-(defmethod DISPLAY-BOTTOM-BORDER ((self GRAPH-BORDER-MIXIN) STREAM line-drawer)
-  (with-slots (tick-size ull vll uur xll xur x-tick-numbering)
-	      self
-    (let ((dtick (x-tick-spacing self))
-	  (dtick-size tick-size))
-      (linear-axis ull vll uur vll xll xur dtick 
-		   tick-size x-tick-numbering line-drawer
-		   #'(lambda (x y number)
-		       (axis-number-horizontal
-			 self STREAM x y
-			 (float-to-string number (x-digits self))
-			 dtick-size))
-		   nil))))
+(defmethod DISPLAY-BOTTOM-BORDER ((self graph-border-mixin) STREAM line-drawer)
+  (with-slots (x-min x-max y-min tick-size x-tick-numbering) self
+    (let* ((dtick (x-tick-spacing self))
+           (tick-size (/ tick-size (y-scale self))))
+      (draw-linear-axis self stream x-min x-max y-min :x dtick tick-size x-tick-numbering
+                        #'(lambda (r s number)
+                            (draw-text* stream (float-to-string number (x-digits self)) r s :align-x :center :align-y :top))))))
 
 (defmethod display-top-border ((self graph-border-mixin) STREAM line-drawer)
-  (declare (ignore stream))
-  (with-slots (tick-size ull vll uur xll xur x-tick-numbering vur)
-	      self
-    (let ((dtick (x-tick-spacing self)))
-      (linear-axis ull vur uur vur xll xur dtick 
-		   (- tick-size) nil line-drawer
-		   nil
-		   nil))))
+  (with-slots (x-min x-max y-max tick-size x-tick-numbering) self
+    (let* ((dtick (x-tick-spacing self))
+           (tick-size (/ (* -1 tick-size) (y-scale self))))
+      (draw-linear-axis self stream x-min x-max y-max :x dtick tick-size x-tick-numbering nil))))
 
 (defmethod DISPLAY-ZERO-ORDINATE ((self GRAPH-BORDER-MIXIN) STREAM line-drawer)
-  (with-slots (tick-size ull vll vur yll yur y-tick-numbering) self
-    (let ((dtick (y-tick-spacing self))
-	  (dtick-size (- tick-size)))
-      (multiple-value-bind (u0 v0) (xy-to-uv self 0 0)
-	(declare (ignore v0))
-	(linear-axis u0 vll u0 vur yll yur dtick 
-		     dtick-size y-tick-numbering line-drawer
-		     #'(lambda (x y number)
-			 (axis-number-vertical
-			  self STREAM
-			  x
-			  (if (zerop number) (+ y (stream-line-height stream)) y)
-			  (float-to-string number (y-digits self))
-			  dtick-size))
-		     nil)))))
+  (with-slots (y-min y-max tick-size y-tick-numbering) self
+    (let* ((dtick (y-tick-spacing self))
+           (tick-size (/ tick-size (x-scale self))))
+      (draw-linear-axis self stream y-min y-max 0 :y dtick tick-size y-tick-numbering
+                        #'(lambda (r s number)
+                            (draw-text* stream
+                                        (float-to-string number (x-digits self))
+                                        r
+                                        (if (zerop number) (+ s (/ (stream-line-height stream) (y-scale self))) s)
+                                        :align-x :right :align-y :center))))))
 
-(defmethod DISPLAY-LEFT-BORDER ((self GRAPH-BORDER-MIXIN) STREAM line-drawer)
-  (with-slots (tick-size ull vll vur yll yur y-tick-numbering) self
-    (let ((dtick (y-tick-spacing self))
-	  (dtick-size (- tick-size)))
-      (linear-axis ull vll ull vur yll yur dtick 
-		   dtick-size y-tick-numbering line-drawer
-		   #'(lambda (x y number)
-		       (axis-number-vertical self STREAM x y
-					     (float-to-string number (y-digits self))
-					     dtick-size))
-		   nil))))
+(defmethod DISPLAY-LEFT-BORDER ((self graph-border-mixin) STREAM line-drawer)
+  (with-slots (x-min y-max y-min tick-size y-tick-numbering) self
+    (let* ((dtick (y-tick-spacing self))
+           (tick-size (/ tick-size (x-scale self))))
+      (draw-linear-axis self stream y-min y-max x-min :y dtick tick-size y-tick-numbering
+                        #'(lambda (r s number)
+                            (draw-text* stream (float-to-string number (y-digits self))  r s :align-x :right :align-y :center))))))
 
-(defmethod DISPLAY-RIGHT-BORDER ((self GRAPH-BORDER-MIXIN) STREAM line-drawer)
-  (declare (ignore stream))
-  (with-slots (tick-size ull vll vur yll yur y-tick-numbering uur) self
-    (let ((dtick (y-tick-spacing self)))
-      (linear-axis uur vll uur vur yll yur dtick 
-		   tick-size nil line-drawer
-		   nil
-		   nil))))
+
+(defmethod DISPLAY-RIGHT-BORDER ((self graph-border-mixin) STREAM line-drawer)
+  (with-slots (y-min y-max x-max tick-size y-tick-numbering) self
+    (let* ((dtick (y-tick-spacing self))
+           (tick-size (/ (* -1 tick-size) (x-scale self))))
+      (draw-linear-axis self stream y-min y-max x-max :y dtick tick-size y-tick-numbering nil))))
 
 (defmethod display :after ((self graph-border-mixin) STREAM)
   (display-border self STREAM)
   (display-labels self stream))
-
-(defclass GRAPH-BORDER-OB-MIXIN (graph-border-mixin)
-    ())
-
-
-(defclass HORIZONTAL-Y-BORDER-MIXIN (graph-border-mixin)
-  ()
-  (:documentation "Y axis labeling without rotation."))
-
-;;; KRA: This assumes the potential of having y-digits + 6 more charaters.
-;;; this should really called something else so 6 isn't hard coded.
-;;; KRA 27JUL93: The 6 is now a 4
-(defmethod compute-margins :around ((self horizontal-y-border-mixin) STREAM)
-  (multiple-value-bind (left right bottom top)
-      (call-next-method)
-    (with-slots (y-tick-numbering y-digits) self
-      (let ((extra (* (if (and y-tick-numbering y-digits) (+ y-digits 4) 3)
-		      (stream-character-width stream))))
-	(values (+ extra left) right bottom top)))))
-
-
-(defclass VERTICAL-Y-BORDER-MIXIN (graph-border-mixin)
-  ()
-  (:documentation "Y axis labels with rotated characters."))
-
-(defmethod COMPUTE-MARGINS :around ((self VERTICAL-Y-BORDER-MIXIN) STREAM)
-  (multiple-value-bind (left right bottom top)
-      (call-next-method)
-    (with-slots (y-tick-numbering) self
-      (values (+ (* (if y-tick-numbering 3 2)
-		    (stream-line-height stream)) left)
-	      right
-	      bottom
-	      top))))
-
-(defmethod AXIS-NUMBER-VERTICAL ((self VERTICAL-Y-BORDER-MIXIN) STREAM x y
-				 number-string the-tick-size)
-  "Put centered number string at current u v position on a vertical axis."
-  (declare (ignore the-tick-size))
-  (decf x (string-size stream nil number-string))
-  (decf y (values (truncate (- (stream-line-height stream) 2) 2)))
-  (setq x (max 10 x))
-  (text self STREAM x y number-string :alu %draw))
-
-(defmethod AXIS-LABEL-VERTICAL ((self VERTICAL-Y-BORDER-MIXIN) STREAM
-				x y label the-tick-size)
-  (with-slots (x-tick-numbering) self
-    (multiple-value-bind (cu cv)
-	(char-position-relative-to-uv
-	  self STREAM x y (- (* (length label) 0.5))
-	  (if (< the-tick-size 0) 1.5
-	     (if (null x-tick-numbering) -1.0 -2.0))
-	  #.(/ pi 2))
-      (text self STREAM cu cv label :alu %draw :rotation #.(/ pi 2)))))
 
 
 (defclass GRAPH-GRID-MIXIN (basic-graph) 
@@ -381,69 +243,43 @@ advised of the possiblity of such damages.
     (declare (ignore ignore))
     (setf (slot-value self 'y-auto-grid) nil))
 
-(defmethod alu-for-grid ((self graph-grid-mixin) stream)
+(defmethod ink-for-grid ((self graph-grid-mixin) stream)
   (declare (ignore stream))
   ;; a dark gray.
   (clim:make-rgb-color .4 .4 .4))
 
-;;; find U value of first grid line from left (or bottom)
-(defun FIND-UFIRST (usmall interval)
-  (let ((ufirst (+ (down usmall interval) interval)))
-    ;; "ufirst" wants to be 0 but isn't due to roundoff. So make it 0.
-    (when (< (/ (abs ufirst) interval) 0.001)
-      (setq ufirst 0.0))
-    (when (< (abs (- ufirst usmall)) (* 0.1 interval))
-      (setq ufirst (+ ufirst interval)))
-    ufirst))
-  
 (defun LINEAR-GRAPH-GRID
-       (the-graph				; Graph flavor to draw grid on.
-	STREAM
-	xmin ymin				; Coordinates of axis on x-y window
-	xmax ymax				; from which to draw grid lines
-						; (dont confuse with graph outline)
-	umin umax				; Axis units corres. to min and max points
-	dgrid					; Grid spacing in axis units.
-	grid-size				; length of grid-line (in pixels!!)
-	)
-  ;;  plot grid lines from a given axis
-  ;;   modified from linear-axis - without the axis, the numbers and the labels
-  ;;    grid lines instead of ticks.  Assume grids are drawn at 0 or 90 degrees.
-  (let ((cos (if (eq xmax xmin) 0 1))
-	(sin (if (eq ymax ymin) 0 1))
-	(usmall (min umin umax))		; Minimum u value
-	(ularge (max umin umax))		; Maximum u value
-	(alu (alu-for-grid the-graph stream)))
-    (setq dgrid (abs dgrid))
-    ;; just like ticks, except tick size is the size of the other axis
-    (loop for u from (find-ufirst usmall dgrid) below ularge by dgrid
-	  with u-grid = (values (round (* grid-size sin)))
-	  with v-grid = (values (round (* grid-size cos)))
-	  as xnew = (+ xmin (* (- u umin) cos))	;(x-along u)
-	  as ynew = (+ ymin (* (- u umin) sin))	;(y-along u)
-	  doing
-      (multiple-value-bind (u1 v1)
-	  (xy-to-uv the-graph xnew ynew)
-	(device-draw-line STREAM u1 v1
-			  (+ u1 u-grid) (+ v1 v-grid) :alu alu)))))
+    (graph
+     stream
+     major-min major-max
+     minor-min minor-max
+     direction ;:x :y
+     dgrid)
+  (let* ((first-tick (+ (down major-min dgrid) dgrid))
+         (ink (ink-for-grid graph stream)))
+    (loop for tick from first-tick below major-max by dgrid do
+         (with-xy-coordinates (graph stream)
+           (if (equal direction :y)
+               (draw-line* stream minor-min tick minor-max tick :ink ink)
+               (draw-line* stream tick minor-min tick minor-max :ink ink))))))
 
 (defun auto-grid (xmin xmax)
   ;; use default values for ticks as defaults for grids
   (auto-tick xmin xmax))
 
 (defmethod DISPLAY-HORIZONTAL-GRID ((self graph-grid-mixin) STREAM)
-  (with-slots (yll yur y-dgrid uur ull xll y-auto-grid) self
-    (let ((dgrid (cond (y-auto-grid (auto-grid yll yur))
-		       (t y-dgrid)))
-	  (grid-size (- uur ull)))
-      (linear-graph-grid self STREAM xll yll xll yur yll yur dgrid grid-size))))
+  (with-slots (y-min y-max y-dgrid x-min x-max y-auto-grid) self
+    (let ((dgrid (cond (y-auto-grid (auto-grid y-min y-max))
+                       (t y-dgrid))))
+      (linear-graph-grid self STREAM y-min y-max x-min x-max :y dgrid)
+      (with-xy-coordinates (self stream)
+        (draw-rectangle* stream x-min y-min x-max y-max :ink +blue+ :filled '())))))
 
 (defmethod DISPLAY-VERTICAL-GRID ((self graph-grid-mixin) STREAM)
-  (with-slots (xll xur x-dgrid vll vur yll x-auto-grid) self
-    (let ((dgrid (cond (x-auto-grid (auto-grid xll xur))
-		       (t x-dgrid)))
-	  (grid-size (- vur vll)))		; pixels
-      (linear-graph-grid self STREAM xll yll xur yll xll xur dgrid grid-size))))
+  (with-slots (y-min y-max x-min  x-max x-dgrid  x-auto-grid) self
+    (let ((dgrid (cond (x-auto-grid (auto-grid x-min x-max))
+                       (t x-dgrid))))
+      (linear-graph-grid self STREAM x-min x-max y-min y-max :x dgrid))))
 
 (defmethod DISPLAY-GRID ((self graph-grid-mixin) STREAM)
   (with-slots (show-grid) self
@@ -454,8 +290,6 @@ advised of the possiblity of such damages.
 (defmethod DISPLAY :before ((self graph-grid-mixin) STREAM)
   (display-grid self STREAM))
 
-(defclass GRAPH-GRID-OB-MIXIN (graph-grid-mixin) ())
-
 
 (defclass GRAPH-DATASETS-MIXIN (graph-border-mixin basic-graph)
   ((datasets :initform nil :initarg :datasets :reader datasets)
@@ -463,12 +297,14 @@ advised of the possiblity of such damages.
   (:documentation 
    "Allows several sets of data to be displayed on the graph, each in its own way."))
 
+(defclass GRAPH-DATASETS-OB-MIXIN (graph-datasets-mixin)
+  ()
+  (:documentation 
+   "Data set in pop-accept methods."))
+
+
 (defmethod (setf hidden-datasets) :after ((new t) (graph GRAPH-DATASETS-MIXIN))
   (setf (auto-scale-needed graph) t))
-
-(defmethod after-fasd-forms ((self graph-datasets-mixin))
-  (with-slots (datasets) self
-    `((setf (datasets ',self) ',datasets))))
 
 (defmethod (setf datasets) (new-datasets (self graph-datasets-mixin))
   (with-slots (datasets) self
@@ -507,7 +343,7 @@ advised of the possiblity of such damages.
   (let ((hidden (hidden-datasets self)))
     (dolist (set (datasets self))
       (or (member set hidden) (display-data set STREAM self)))
-    (Force-output stream)))
+    (force-output stream)))
 
 (defmethod x-label :around ((self graph-datasets-mixin))
   (or (call-next-method)
@@ -528,9 +364,6 @@ advised of the possiblity of such damages.
       (unless (stringp the-title)
 	(setq the-title (format nil "~a" the-title))))
     (or the-title " ")))
-
-
-(defclass GRAPH-DATASETS-OB-MIXIN (graph-datasets-mixin) ())
 
 
 (defclass GRAPH-AUTO-SCALE-MIXIN (graph-datasets-mixin basic-graph) 
@@ -554,19 +387,19 @@ advised of the possiblity of such damages.
     (setq auto-scale-needed t)))
 
 ;;; Never auto-scale if user changes axis definitions.
-(defmethod (setf xur) :after ((new t) (self graph-auto-scale-mixin))
+(defmethod (setf x-max) :after ((new t) (self graph-auto-scale-mixin))
   (setf (auto-scale self)
 	(case (auto-scale self) (:both :y) (:x nil) (otherwise (auto-scale self)))))
 
-(defmethod (setf xll) :after ((new t) (self graph-auto-scale-mixin))
+(defmethod (setf x-min) :after ((new t) (self graph-auto-scale-mixin))
   (setf (auto-scale self)
 	(case (auto-scale self) (:both :y) (:x nil) (otherwise (auto-scale self)))))
 
-(defmethod (setf yll) :after ((new t) (self graph-auto-scale-mixin))
+(defmethod (setf y-min) :after ((new t) (self graph-auto-scale-mixin))
   (setf (auto-scale self)
 	(case (auto-scale self) (:both :x) (:y nil) (otherwise (auto-scale self)))))
 
-(defmethod (setf yur) :after ((new t) (self graph-auto-scale-mixin))
+(defmethod (setf y-max) :after ((new t) (self graph-auto-scale-mixin))
   (setf (auto-scale self)
 	(case (auto-scale self) (:both :x) (:y nil) (otherwise (auto-scale self)))))
 
@@ -590,12 +423,12 @@ advised of the possiblity of such damages.
 
 (defmethod graph-auto-scale-limits ((self graph-auto-scale-mixin))
   "Returns limits needed to show all datasets."
-  (with-slots (datasets hidden-datasets xll xur yll yur auto-scale) self
+  (with-slots (datasets hidden-datasets x-min x-max y-min y-max auto-scale) self
     (loop with xmin and xmax and ymin and ymax
 	for dataset in datasets
 	as limits = (unless (member dataset hidden-datasets)
 		      (auto-scale-limits dataset auto-scale
-					 xll xur yll yur))
+					 x-min x-max y-min y-max))
 	when limits
 	do (multiple-value-bind (left right bottom top)
 	       (apply #'values limits)
@@ -620,21 +453,21 @@ advised of the possiblity of such damages.
 
 (defmethod do-auto-scale ((self graph-auto-scale-mixin))
   "Actually do the auto scaling."
-  (with-slots (auto-scale xll xur yll yur) self
+  (with-slots (auto-scale x-min x-max y-min y-max) self
     (multiple-value-bind (xmin xmax ymin ymax)
 	(graph-auto-scale-limits self)
       (when (member auto-scale '(:x :both) :test #'eq)
-	(if xmin (setq xll xmin))
-	(if xmax (setq xur xmax)))
+	(if xmin (setq x-min xmin))
+	(if xmax (setq x-max xmax)))
       (when (member auto-scale '(:y :both) :test #'eq)
-	(if ymin (setq yll ymin))
-	(if ymax (setq yur ymax))))
-    (when (= xll xur)			; Degenerate limits. set limits
-      (decf xll 1.0)			;  so data will be plotted.
-      (incf xur 1.0))
-    (when (= yll yur)
-      (decf yll 1.0)
-      (incf yur 1.0))))
+	(if ymin (setq y-min ymin))
+	(if ymax (setq y-max ymax))))
+    (when (= x-min x-max)			; Degenerate limits. set limits
+      (decf x-min 1.0)			;  so data will be plotted.
+      (incf x-max 1.0))
+    (when (= y-min y-max)
+      (decf y-min 1.0)
+      (incf y-max 1.0))))
  
 
 (defclass graph-limits-mixin (graph-auto-scale-mixin)
@@ -718,10 +551,10 @@ advised of the possiblity of such damages.
 
 (defmacro with-temporary-cursor-position ((stream x y) &body body)
   `(with-output-truncation (,stream)
-     (multiple-value-bind (.x. .y.) (stream-cursor-position* ,stream)
+     (multiple-value-bind (.x. .y.) (stream-cursor-position ,stream)
        (unwind-protect
-	   (progn (stream-set-cursor-position* ,stream ,x ,y) ,@body)
-	 (stream-set-cursor-position* ,stream .x. .y.)))))
+            (progn (setf (stream-cursor-position ,stream) (values ,x ,y)) ,@body)
+         (setf (stream-cursor-position ,stream) (values .x. .y.))))))
 
 (defmethod display :around ((self presentable-graph-mixin) STREAM)
   "Display the graph as a presentation."
@@ -737,9 +570,9 @@ advised of the possiblity of such damages.
 					  :unique-id self
 					  :cache-value (redisplay-tick self)
 					  :cache-test #'=)
-	(multiple-value-bind (x1 x2 y1 y2) (screen-outside self stream)
-	  (declare (ignore x2 y1))
-	  (with-temporary-cursor-position (stream x1 y2)
+        (multiple-value-bind (x0 y0 x1 y1) (rectangle-edges* (outside-box self))
+	  (declare (ignore x1 y1))
+	  (with-temporary-cursor-position (stream x0 y0)
 	    (with-output-as-presentation
 		(:stream STREAM
 			 :single-box t
@@ -762,8 +595,8 @@ advised of the possiblity of such damages.
   (with-output-truncation (stream)
     (let ((presentation (presentation self)))
       (when presentation
-	(clim:erase-output-record presentation stream nil)
-	(setq presentation nil)))))
+        (clim:erase-output-record presentation stream nil)
+        (setq presentation nil)))))
 
 (defmethod refresh :around ((self presentable-graph-mixin) stream)
   "By default, graphs refresh by erasing and then drawing.

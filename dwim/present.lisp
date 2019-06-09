@@ -39,40 +39,12 @@ advised of the possiblity of such damages.
   (clim:define-gesture-name :middle :pointer-button :middle)
   (clim:define-gesture-name :right :pointer-button :right))
 
-(defun presentation-under-pointer (stream)
-  (multiple-value-bind (x y) (clim:stream-pointer-position stream)
-    (clim::find-innermost-applicable-presentation '((t)) stream x y)))
-
 (defun presentation-p (object)
   (typep object 'clim:presentation))
 
-(defun presentation-object (presentation)
-  (if (presentation-p presentation) (clim:presentation-object presentation)))
-
-(defun presentation-subtypep (subtype supertype)
-  (clim:presentation-subtypep subtype supertype))
-
-(defun presentation-type-p (type)
-  (clim:presentation-type-specifier-p type))
-
-(defun describe-presentation-type (type &optional (stream *standard-output*))
-  (clim:describe-presentation-type type stream))
-
-(defun bounding-rectangle* (presentation)
-  "Get the bounding edges of the presentation."
-  (clim:with-bounding-rectangle*
-      (left top right bottom) presentation
-    (values left top right bottom)))
-
-(defun redisplay (record stream)
-  (clim:redisplay record stream :check-overlapping nil))
-
-(defun redisplayable? (stream)
-  (clim:redisplayable-stream-p stream))
-
 (defun redisplayable-format (stream string &rest args)
   (if (eq stream 't) (setq stream *standard-output*))
-  (if (redisplayable? stream)
+  (if (clim:redisplayable-stream-p stream)
       (let ((a (copy-list args)))
 	(with-redisplayable-output (:stream stream
 					    :unique-id string
@@ -80,28 +52,6 @@ advised of the possiblity of such damages.
 					    :cache-test #'equal)
 	  (apply #'format stream string a)))
       (apply #'format stream string args)))
-
-(defun accept-values (descriptions &key (prompt nil)
-					(stream *query-io*)
-					(own-window nil))
-  (accepting-values
-      (stream :own-window own-window :label prompt)
-    (mapcar #'(lambda (description)
-		(destructuring-bind (type &rest options)
-		    description
-		  (prog1 (apply #'accept type :stream stream
-				:query-identifier
-				(getf options :query-identifier (car description))
-				options)
-		    (terpri stream))))
-	    descriptions)))
-
-(defun menu-choose (choices
-		    &key (prompt "Choose:")
-		         default-choice)
-  (clim:menu-choose choices
-                    :associated-window *standard-input*
-                    :label prompt :default-item default-choice))
 
 ;;;
 ;;; Presentation parser primitives
@@ -118,7 +68,7 @@ advised of the possiblity of such damages.
 
 (defun peek-char-for-accept (stream &optional hang)
   (let ((ch (and (or hang
-		     (not (interactive-stream-p stream))
+		             (not (clim:extended-input-stream-p stream))
 		     (< (input-position stream) (insertion-pointer stream)))
 		 (read-char-for-accept stream))))
     (when ch
@@ -135,9 +85,6 @@ advised of the possiblity of such damages.
 		(characterp (second char-from-accept))
 		(char-equal comparandum (second char-from-accept)))))))
 
-(defun read-token (stream)
-  (clim:read-token stream))
-
 (defun input-position (stream)
   ;; This location identifies the current position of the parser in a (buffered)
   ;; input stream.  When a character gets read by read-char-for-accept, this pointer
@@ -152,7 +99,7 @@ advised of the possiblity of such damages.
       (file-position stream new)))
 
 (defun insertion-pointer (stream)
-  (cond ((interactive-stream-p stream)
+  (cond ((clim:extended-input-stream-p stream)
 	 (clim:stream-insertion-pointer stream))))
 
 (defvar *%%ready-to-catch%%* nil)
@@ -181,81 +128,6 @@ advised of the possiblity of such damages.
   (if (eq object :failure)
       (clim:simple-parse-error "The input read was not of the required type.")
       (clim:input-not-of-required-type object type)))
-
-(defun validate-object (object ptype)
-  (let ((p (clim:expand-presentation-type-abbreviation ptype)))
-    (clim::presentation-typep object p)))
-
-(defmacro with-accept-activation-chars ((additional-characters &key override) &body body)
-  `(clim:with-activation-gestures (,additional-characters :override ,override)
-    ,@body))
-
-(defun accept-activation-p (char &optional (achars))
-  (declare (ignorable achars))
-  (clim:activation-gesture-p char))
-
-(defmacro with-accept-blip-chars ((additional-characters &key override) &body body)
-  `(clim:with-delimiter-gestures (,additional-characters :override ,override) ,@body))
-
-(defun accept-blip-p (char &optional (chars))
-  (declare (ignorable chars))
-  (clim:delimiter-gesture-p char))
-
-(defmacro with-activation-characters ((additional-characters &key override) &body body)
-  `(with-accept-activation-chars (,additional-characters :override ,override) ,@body))
-
-(defmacro with-blip-characters ((additional-characters &key override) &body body)
-  `(with-accept-blip-chars (,additional-characters :override ,override) ,@body))
-
-(defmacro completing-from-suggestions
-	  ((stream &key delimiters allow-any-input
-		   (initially-display-possibilities nil idp)
-		   (type nil typep))
-	   &body body)
-  (declare (ignore initially-display-possibilities type))
-  (progn
-    (if idp (format t "~% completing-from-suggestions :initially-display-possibilities not supported."))
-    (if typep (format t "~% completing-from-suggestions :type not supported."))
-    `(clim:completing-from-suggestions
-	 (,stream :partial-completers ,delimiters :allow-any-input ,allow-any-input)
-       ,@body)))
-
-(defun complete-from-sequence (sequence stream &key type (name-key #'string))
-  (declare (ignore type))
-  (completing-from-suggestions (stream)
-    (map nil #'(lambda (elt) (suggest (funcall name-key elt) elt)) sequence)))
-
-;;; JPM.  This isn't really portable because it generates a
-;;; DWish blip object.  Use with-input-context below, if you can.
-(defmacro with-presentation-input-context
-	  ((PRESENTATION-TYPE &rest OPTIONS)
-	   (&optional (BLIP-VAR   '.BLIP.))
-	   NON-BLIP-FORM
-	   &body CLAUSES)
-  `(clim:with-input-context (,PRESENTATION-TYPE :override ,(getf options :inherit))
-			    (.object. .presentation-type. .gesture.)
-	,NON-BLIP-FORM
-	,@(mapcar #'(lambda (clause)
-		      `(,(first clause)
-			(let ((,blip-var (list .presentation-type.
-					       .gesture.
-					       .object.)))
-			  ,blip-var
-			  ,@(rest clause))))
-		  CLAUSES)))
-
-(defmacro with-input-context
-	  ((PRESENTATION-TYPE &key OVERRIDE STREAM)
-	   (&optional (OBJECT-VAR '.object.)
-		      (PT-VAR     '.presentation-type.)
-		      (GESTURE-VAR   '.gesture. gesture-p))
-	   NON-BLIP-FORM
-	   &body CLAUSES)
-  (declare (ignore stream))
-  `(clim:with-input-context (,PRESENTATION-TYPE :override ,OVERRIDE)
-			    (,OBJECT-VAR ,PT-VAR ,@(if gesture-p GESTURE-VAR))
-	,NON-BLIP-FORM
-      ,@CLAUSES))
 
 ;;;
 ;;; Presentation types
@@ -325,7 +197,7 @@ advised of the possiblity of such damages.
 	  (declare (ignore obj))
 	  (clim:formatting-cell (str)
             (if selected
-                (with-text-face (:bold str) (write-string name str))
+                (clim:with-text-face (str :bold) (write-string name str))
                 (write-string name str))))))
   (when (not select-action)
     (setq select-action
@@ -335,9 +207,7 @@ advised of the possiblity of such damages.
   (let ((choices (funcall make-choices
 			  :query-identifier query-identifier
 			  :sequence sequence
-			  :select-action select-action))
-	;;(width (- (stream-viewport-size stream) (stream-cursor-position* stream)))
-	)
+			  :select-action select-action)))
     (labels ((draw-one (item value pretty-name selected-p stream)
 	       (with-output-as-presentation
 		   (:type choice-type
@@ -411,16 +281,9 @@ advised of the possiblity of such damages.
      #'(lambda (stream object name selected-p)
 	 (declare (ignore object))
 	 (if selected-p
-	     (with-character-face (:bold stream)
+	     (clim:with-text-face (stream :bold)
 	       (format stream "~A" name))
 	     (format stream "~A" name))))))
-
-(defun all-characters (&optional (n (1+ (char-code #\rubout))))
-  (let ((list nil))
-    (dotimes (i n) (push (code-char i) list))
-    list))
-
-(defvar *all-characters* nil)
 
 (defun readline-no-echo (stream)
   (clim:with-output-recording-options (stream :draw nil :record nil)

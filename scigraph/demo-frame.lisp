@@ -105,7 +105,7 @@ advised of the possiblity of such damages.
 
 (defun make-demo-frame
     (&key
-     create
+     (create t)
      (left 0) (bottom 0)
      (width 600) (height 400)
      (wait-until-done nil))	; Start a new process?
@@ -131,7 +131,7 @@ advised of the possiblity of such damages.
 (defun make-bar-demo ()
   (let* ((graph (make-instance 'annotated-graph
 		  :name "Three Categories"
-		  :auto-scale nil :xll -1 :yll 0.0 :xur 3.0 :yur 5.0
+		  :auto-scale nil :x-min -1 :y-min 0.0 :x-max 3.0 :y-max 5.0
 		  ))
 	 (data '((0.0 3.0)
 		 (1.0 4.0)
@@ -166,12 +166,12 @@ to 100.
 (defmethod name ((data plain-data))
   (format nil "~A" data))
 
-(defmethod auto-scale-limits ((data plain-data) type xll xur yll yur)
+(defmethod auto-scale-limits ((data plain-data) type x-min xmax y-min y-max)
   (list
-   (min 0 xll)
-   (max 100 xur)
-   (min 0 yll)
-   (max 100 yur)))
+   (min 0 x-min)
+   (max 100 x-max)
+   (min 0 y-min)
+   (max 100 y-max)))
 
 (defmethod display-data ((data plain-data) STREAM graph)
   (multiple-value-bind (x1 y1)

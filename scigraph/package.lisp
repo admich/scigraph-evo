@@ -40,24 +40,8 @@ advised of the possiblity of such damages.
            #:string-size)
 
   (:shadowing-import-from #:dwim
-                          #:menu-choose
-                          #:with-output-recording-disabled
-                          #:%flip
-                          #:%draw
-                          #:%erase
-                          #:%alu
-                          #:draw-point
-                          #:draw-line
-                          #:draw-string
-                          #:draw-string-image
-                          #:draw-polygon
-                          #:draw-triangle
-                          #:draw-circle
-                          #:draw-rectangle
                           #:stream-line-height
                           #:stream-character-width
-                          #:stream-cursor-position*
-                          #:stream-set-cursor-position*
                           #:stream-viewport
                           #:stream-viewport-size))
 
@@ -87,9 +71,9 @@ advised of the possiblity of such damages.
                 #:stream-increment-cursor-position
                 #:beep
                 #:make-command-table
-                #:define-command-table
                 #:find-command-table)
   (:export
+   #:scigraph-showcase
    #:make-demo-frame
    #:view-graphs
    #:display-graph
@@ -109,7 +93,6 @@ advised of the possiblity of such damages.
    #:display-datum
    #:displayed?
    #:datum-position
-   #:device-draw-line
    #:line-style
    #:thickness
    #:symbologies
@@ -128,18 +111,13 @@ advised of the possiblity of such damages.
    #:popup-accept-forms
    #:popup-accept
    #:popup-accept-standard-loop
-   #:graph-under-mouse
    #:add-dataset
    #:datasets
    #:data
    #:define-graph-command
    #:xy-inside
    #:set-xy-inside
-   #:xy-to-uv
    #:xy-to-stream
-   #:uv-to-xy
-   #:screen-to-uv
-   #:uv-to-screen
    #:name
    #:annotation
    #:point-annotation
@@ -157,19 +135,14 @@ advised of the possiblity of such damages.
 
    #:color
    #:color-presentation
-   #:alu
-   #:alu-for-color
-   #:alu-for-stream
+   #:ink
+   #:ink-for-color
+   #:ink-for-stream
    #:*color-specifications*
-   #:device-draw-aluf
    #:device-line-thickness
-   #:device-line-end-shape
    #:device-line-joint-shape
    #:device-filled-p
    #:device-fill-pattern
-   #:%draw
-   #:%erase
-   #:%flip
    #:initialize-color-system
 
    #:graph-data
@@ -193,8 +166,7 @@ advised of the possiblity of such damages.
 
    #:graph
    #:annotated-graph
-   #:presentable-graph-mixin
-   #:graph-datasets-ob-mixin
+   #:presentable-graph-mixin   
    #:graph-datasets-mixin
    #:graph-legend-mixin
    #:graph-relative-size-mixin
@@ -202,19 +174,12 @@ advised of the possiblity of such damages.
    #:graph-slider-interaction-mixin
    #:graph-slider-mixin
    #:graph-handle-mouse-mixin
-   #:graph-mouse-resolution-mixin
-   #:graph-auto-scale-ob-mixin
-   #:graph-auto-scale-extensions-ob-mixin
+   #:graph-mouse-resolution-mixin   
    #:graph-auto-scale-extensions-mixin
    #:graph-limits-mixin
-   #:graph-auto-scale-mixin
-   #:graph-grid-ob-mixin
-   #:graph-grid-mixin
-   #:horizontal-y-border-mixin
-   #:vertical-y-border-mixin
-   #:graph-border-ob-mixin
-   #:graph-border-mixin
-   #:basic-graph-ob-mixin
+   #:graph-auto-scale-mixin   
+   #:graph-grid-mixin   
+   #:graph-border-mixin   
    #:basic-graph
    #:graph-with-reselectable-axes)
 
@@ -222,100 +187,36 @@ advised of the possiblity of such damages.
                           #:present
                           #:present-to-string
                           #:presentation-type
-                          #:menu-choose
-
-                          #:presentation-under-pointer
                           #:presentation-p
-                          #:presentation-object
-                          #:presentation-subtypep
-                          #:presentation-type-p
                           #:present-to-string
-                          #:describe-presentation-type
-                          #:bounding-rectangle*
-                          #:redisplay
                           #:redisplayable-format
                           #:accept
                           #:accepting-values
-                          #:accept-values
                           #:accept-variable-values
-                          #:menu-choose
-                          #:read-token
                           #:input-position
                           #:insertion-pointer
                           #:input-not-of-required-type
                           #:catching-parser-failures
-                          #:validate-object
-                          #:with-accept-activation-chars
-                          #:accept-activation-p
-                          #:with-accept-blip-chars
-                          #:accept-blip-p
-                          #:with-activation-characters
-                          #:with-blip-characters
-                          #:completing-from-suggestions
                           #:suggest
-                          #:complete-from-sequence
-                          #:with-presentation-input-context
-                          #:with-input-context
                           #:sheet
                           #:accept-values-choose-from-sequence
                           #:alist-subset
                           #:invisible-object
-
-                          #:color-stream-p
-                          #:with-clipping-from-output
-                          #:with-underlining
-                          #:surrounding-output-with-border
-                          #:%flip
-                          #:%draw
-                          #:%erase
-                          #:%alu
-                          #:draw-point
-                          #:draw-line
-                          #:draw-string
-                          #:draw-string-image
-                          #:draw-polygon
-                          #:draw-triangle
-                          #:draw-circle
-                          #:draw-rectangle
-
                           #:window-under-mouse
                           #:change-size
                           #:stream-line-height
                           #:stream-character-width
-                          #:stream-cursor-position*
-                          #:stream-set-cursor-position*
                           #:stream-viewport
                           #:stream-viewport-size
-
-                          #:stream-pointer-position*
-                          #:pointer-input-rectangle*
-                          #:make-application-frame
-                          #:window-set-viewport-position*
-                          #:launch-frame
-
                           #:printing-random-object
                           #:with-stack-list
-                          #:define-command
-                          #:install-command
                           #:define-presentation-to-command-translator
-                          #:define-presentation-translator
-                          #:define-presentation-action
                           #:define-presentation-type
                           #:with-output-as-presentation
                           #:with-output-truncation
-                          #:with-output-recording-enabled
-                          #:with-output-recording-disabled
                           #:with-redisplayable-output
-                          #:with-character-face
-                          #:with-text-face
-                          #:with-character-style
-                          #:with-character-size
-                          #:with-character-family
-                          #:with-text-style
-
                           #:alist-member
                           #:command
-
                           #:status-pane
                           #:status-line
                           #:set-status-line

@@ -1,0 +1,81 @@
+=scigraph-evo= means Scigraph Evolution and it is a fork of Scigraph a
+plot library for CLIM.
+
+The original README file is copied in this repository as README-orig.
+
+Scigraph is a common-lisp plotting library based on CLIM.
+
+It is a very old software and the original version was compatible with
+different graphics system: Symbolics Dynamic Windows, CLIM I, CLIM II.
+
+The original code is at:
+
+https://www.cs.cmu.edu/afs/cs.cmu.edu/project/ai-repository/ai/lang/lisp/gui/clim/general/scigraph/
+
+A more updated version, which runs only in CLIM 2, is shipped with
+McCLIM (a free software implementation CLIM II):
+
+https://github.com/McCLIM/McCLIM/tree/master/Apps/Scigraph
+
+This is a fork of the McCLIM version of Scigraph and it is tested only
+on McCLIM.
+
+Due to this heritage Scigraph has some problem that this version try
+to address.
+
+Some goals of this fork are:
+
+1. Remove old compatibility layer: the original Scigraph has a
+   compatibility layer (=dwim= package). Because this version runs
+   only in =clim2=, this layer is no more necessary and many functions
+   in this package only call the equivalent clim's function.
+
+2. Remove unused functions and classes: some classes and function in
+   Scigraph seems "works in progress" and are never used.
+
+3. Change coordinate systems. In the original Scigraph many drawing
+   functions are defined in UV coordinate system. This system have the
+   origin in the left bottom corner of the stream and the vertical
+   axis with upward positive direction. I find this system
+   problematic: for example if the frame is resized the position of
+   the graph in the frame change because its position is computed with
+   bottom left corner as reference. In this version of Scigraph the UV
+   system is removed and instead it is used a coordinate system
+   (called RS) that it is like stream coordinate system but with the
+   origin in the top left corner of the graph.
+
+4. Use CLIM feature. In Scigraph many CLIM feature are not used and
+   are implemented some "in-house" solutions. Examples are dash-lines, clipping,
+   ... . This version of Scigraph try to use CLIM II feature when possible. 
+
+5. Fix bugs 
+
+6. Add features: work in progress. Ideas: pie chart, timedate x-tick labels, ...
+
+** Usage
+
+1. Clone this repo in a location where [[https://www.quicklisp.org/beta/][quicklisp]] can find projects
+   (examples =~/.quicklisp/local-project/=)
+2. Load =scigraph-evo= system:
+#+BEGIN_SRC lisp
+(ql:quickload :scigraph-evo)
+#+END_SRC
+
+3. Try some demo; there are the original scigraph =make-demo-frame=,
+   =make-plain-demo=, =make-bar-demo= or the new =scigraph-showcase=.
+#+BEGIN_SRC lisp
+(gr:make-demo-frame)
+#+END_SRC
+
+#+BEGIN_SRC lisp
+(gr::make-bar-demo)
+#+END_SRC
+
+#+BEGIN_SRC lisp
+(gr::make-plain-demo)
+#+END_SRC
+
+#+BEGIN_SRC lisp
+(gr::scigraph-showcase :new-process t)
+#+END_SRC
+

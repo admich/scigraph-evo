@@ -36,7 +36,9 @@ advised of the possiblity of such damages.
 ;;;  "border" annotations.  A border annotation is like an ordinary annotation except
 ;;;  that it does the right thing when you zoom or rescale.
 
-
+;;; The value of this depends on the lisp implementation.
+(defconstant *return* #.(elt (format nil "~%") 0))
+
 (define-presentation-type annotation ()
   ;; This has to be in a file separate from (defclass annotation ...) because
   ;; otherwise clim 1.0 complains.  jpm.
@@ -110,11 +112,12 @@ advised of the possiblity of such damages.
 (defun annotate-something (graph STREAM)
   (let ((choice
 	 (menu-choose
-	  `(("Plain Text" :value annotation
-	     :documentation "Add your own text to this graph")
+	  `(("Plain Text" :value border-annotation
+                      :documentation "Add your own text to this graph")
 	    ("Plain Text + Pointer" :value point-annotation
 	     :documentation "Text with a pointer to a point"))
-	  :prompt "Choose Type of Annotation")))
+	  :label "Choose Type of Annotation"
+      :associated-window *standard-input*)))
     (when choice (annotate graph STREAM choice))))
 
 (define-graph-command com-annotations-menu ((object 'graph) (WINDOW 'sheet))
@@ -137,7 +140,8 @@ advised of the possiblity of such damages.
 	 (dataset (if (cdr datasets)
 		      (menu-choose (mapcar #'(lambda (d) `(,(name d) :value ,d))
 					   datasets)
-				   :prompt "Choose a Dataset")	 
+                           :label "Choose a Dataset"
+                           :associated-window *standard-input*)	 
 		    (car datasets))))
     (when dataset
       (annotate-data-point dataset window graph))))
@@ -159,7 +163,8 @@ advised of the possiblity of such damages.
 	 (dataset (if (cdr datasets)
 		      (menu-choose (mapcar #'(lambda (d) `(,(name d) :value ,d))
 					   datasets)
-				   :prompt "Choose a Dataset:")
+                           :label "Choose a Dataset:"
+                           :associated-window *standard-input*)
 		    (car datasets))))
     (when dataset
       (annotate-data-region dataset graph window))))
@@ -203,85 +208,54 @@ advised of the possiblity of such damages.
 
 ;;; BORDER-ANNOTATION
 ;;;
-;;; These have their own "border" coordinate system, so that graph titles and the like 
-;;; don't go flying off into infinity when you zoom or otherwise rescale.
+;;; Annotation with internal slot r s and solidal to r-s coordinate system
 
 (defclass BORDER-ANNOTATION-MIXIN ()
-    ((border :initform nil :initarg :border :accessor border)
-     ;; :left, :top, :right, or :bottom
-     (border-u :initform nil :initarg :border-u :accessor border-u)
-     ;; "border" coordinates
-     (border-v :initform nil :initarg :border-v :accessor border-v)))
+  ()
+  (:documentation "Annotation with internal slot x y solidal to r-s coordinate system"))
 
-(defmethod border-to-uv ((self border-annotation-mixin) u v)
-  ;; Coordinate system transformation.
-  (with-slots (graph border) self
-    (multiple-value-bind (ull uur vll vur) (uv-inside graph)
-      (case border
-	(:bottom (values (+ u (values (truncate (+ ull uur) 2)))
-			 (+ v vll)))
-	(:top    (values (+ u (values (truncate (+ ull uur) 2)))
-			 (+ v vur)))
-	(:left   (values (+ u ull)
-			 (+ v (values (truncate (+ vll vur) 2)))))
-	(:right  (values (+ u uur)
-			 (+ v (values (truncate (+ vll vur) 2)))))))))
+(defmethod rs-position ((self border-annotation-mixin))
+  (with-slots (x y) self (values x y)))
 
-(defmethod uv-to-border ((self border-annotation-mixin) u v)
-  ;; Coordinate system transformation.
-  (with-slots (graph border) self
-    (multiple-value-bind (ull uur vll vur) (uv-inside graph)
-      (case border
-	(:bottom (values (- u (values (truncate (+ ull uur) 2)))
-			 (- v vll)))
-	(:top    (values (- u (values (truncate (+ ull uur) 2)))
-			 (- v vur)))
-	(:left   (values (- u ull)
-			 (- v (values (truncate (+ vll vur) 2)))))
-	(:right  (values (- u uur)
-			 (- v (values (truncate (+ vll vur) 2)))))))))
+(defmethod set-rs-position ((self border-annotation-mixin) r s &optional constrain-p)
+  (declare (ignore constrain-p))
+  (with-slots (x y) self (setq x r y s)))
 
-(defmethod set-xy-position :after ((self border-annotation-mixin) new-x new-y
-				   &optional (constrain-p t))
-  "Set the UV position of the annotation (but constrain it within the window)"
-  (when constrain-p
-    (multiple-value-bind (x y) (xy-to-uv (graph self) new-x new-y)
-      (multiple-value-setq (x y) (uv-to-border SELF x y))
-      (set-border-position self x y nil))))
+(defmethod xy-position ((self border-annotation-mixin))
+  (multiple-value-bind (r s) (rs-position self)
+    (rs-to-xy (graph self) r s)))
 
-(defmethod set-border-position ((self border-annotation-mixin) u v
-				&optional (constrain-p t))
-  (with-slots (border-u border-v) self
-    (setq border-u u border-v v)
-    (when constrain-p
-      (multiple-value-bind (bu bv) (border-to-uv self u v)
-	(set-uv-position self bu bv nil)))))
+(defmethod set-xy-position ((self border-annotation-mixin) newx newy &optional constrain-p)
+  (declare (ignore constrain-p))
+  (multiple-value-setq (r s) (rs-to-xy (graph self) newx newy))
+  (set-rs-position self r s))
+
+(defmethod set-stream-position ((self border-annotation-mixin) stream x y)
+  (multiple-value-setq (r s) (stream-to-rs (graph self) x y))
+  (set-rs-position self r s))
+
+(defmethod stream-position ((self border-annotation-mixin) stream)
+  (multiple-value-bind (r s) (rs-position self)
+    (rs-to-stream (graph self) r s)))
 
 ;;; Border annotations never get clipped.
 (defmethod display-p ((self border-annotation-mixin)) t)
 
 (defmethod annotation-single-box ((self border-annotation-mixin)) t)
 
-(defmethod rescale-annotation progn ((self border-annotation-mixin))
-  ;; border-to-xy transformation depends on scaling, so recache current
-  ;; position.
-  (with-slots (border-u border-v) self
-    (when (and border-u border-v)
-      (set-border-position self border-u border-v))))
 
 (defclass BORDER-ANNOTATION (border-annotation-mixin annotation) ())
 
-(defun MAKE-BORDER-ANNOTATION (graph STREAM text border u v &optional
+(defun MAKE-BORDER-ANNOTATION (graph STREAM text r s &optional
 			       (type 'border-annotation)
 			       (angle 0) (display t))
   "Noninteractively add an annotation."
   (let ((annotation (make-instance type
-				   :angle angle
-				   :border border 
+				   :angle angle                   
 				   :graph graph)))
     (set-text annotation STREAM text)
     (setf (style annotation) (default-text-style graph stream))
-    (set-uv-position annotation u v)
+    (set-rs-position annotation r s)
     (setf (annotations graph) (cons annotation (annotations graph)))
     (if display (display annotation stream))
     annotation))
@@ -291,7 +265,7 @@ advised of the possiblity of such damages.
 ;;; solve the problem that the string is stored in two places.
 
 (defclass x-label (border-annotation) ()
-  (:default-initargs :border :bottom))
+  )
 
 (defmethod display :before ((self x-label) (stream t))
   (setf (annotation-text self) (x-label (graph self))))
@@ -302,7 +276,7 @@ advised of the possiblity of such damages.
     (when graph (setf (x-label graph) string))))
 
 (defclass y-label (border-annotation) ()
-  (:default-initargs :border :left))
+  )
 
 (defmethod display :before ((self y-label) (stream t))
   (setf (annotation-text self) (y-label (graph self))))
@@ -313,7 +287,7 @@ advised of the possiblity of such damages.
     (when graph (setf (y-label graph) string))))
 
 (defclass title (border-annotation) ()
-  (:default-initargs :border :top))
+  )
 
 (defmethod display :before ((self title) (stream t))
   (setf (annotation-text self) (title (graph self))))
@@ -343,88 +317,64 @@ advised of the possiblity of such damages.
   (default-text-style graph stream))
 
 (defmethod compute-x-annotation ((self annotated-borders-mixin) STREAM)
-  (with-slots (x-annotation ull uur vll x-label) self
+  (with-slots (x-annotation width height x-label) self
     (when x-label
       (when (not x-annotation)
-	(LET* ((umid (values (truncate (+ ull uur) 2)))
-	       (annotation (make-border-annotation self STREAM x-label :bottom
-						   umid ull 'x-label 0 nil))
-	       (width nil))
-	  (setf (style annotation) (x-label-text-style self stream))
-	  (setq width (width annotation))
-	  (set-uv-position annotation
-			   (- (values (truncate (+ ull uur) 2))
-			      (values (truncate width 2)))
-			   (- vll (* (stream-line-height stream) 1)))
-	  (setq x-annotation annotation))))))
+        (LET* ((rmid (/ width 2))
+               (annotation (make-border-annotation self STREAM x-label
+                                                   rmid 0 'x-label 0 nil))
+               (width nil))
+          (setf (style annotation) (x-label-text-style self stream))
+          (setq width (width annotation))
+          (set-rs-position annotation
+                           (- rmid
+                              (/ width 2))
+                           (+ height (* (stream-line-height stream) 2)))
+          (setq x-annotation annotation))))))
 
 (defmethod display-x-label ((self annotated-borders-mixin) STREAM)
   (compute-x-annotation self STREAM))
 
-
-;;;
-;;; KRA 27JUL93: ANNOTATED-HORIZONTAL-Y-BORDER-MIXIN-KLUDGE
-;;;
-
-#||
-
-Here's what's going on.
-
-The definition of the class GRAPH is dependent on if characters can be
-rotated or not, with the following conditionalization in direct
-superclasses:
-
-      #-clim vertical-y-border-mixin
-      #+clim horizontal-y-border-mixin
-
-Unfortunately, annotated-borders-mixin is simply slapped on top of graph.
-However, compute-y-annotation has to know which mixing it got.
-We simply conditionalize the method the same way.
-
-This is indicative of the original version of graph being simple minded
-about fonts and pointer sensitivity.  It would be better to either drop the
-older classes in favor of cleaned up newer ones.  Someday, ...
-
-||#
 
 (defmethod compute-y-annotation ((self annotated-borders-mixin) STREAM)
-  (with-slots (y-annotation ull vll vur y-label y-digits) self
+  (with-slots (y-annotation width height y-label y-digits) self
     (when y-label
       (when (not y-annotation)
-	(let* ((annotation (make-border-annotation
-			     self STREAM y-label :left
-			     ull vll
-			     'y-label #.(/ pi -2) nil))
-	       (height nil))
+        (let* ((smid (/ height 2))
+               (annotation (make-border-annotation
+                            self STREAM y-label
+                            0 smid
+                            'y-label #.(/ pi -2) nil))
+               (height nil))
 	  (setf (style annotation) (y-label-text-style self stream))
 	  (setq height (* (length y-label) (stream-line-height stream)))
-	  (set-uv-position annotation
-			   (- ull (* (stream-character-width stream)
-				     (+ y-digits 2)))
-			   (- (values (truncate (+ vll vur) 2))
-			      (values (truncate height 2))))
+	  (set-rs-position annotation
+	    	   (- 0 (* (stream-character-width stream)
+	    		     (+ y-digits 1)))
+	    	   (+ smid
+	    	      (truncate height 2)))
 	  (setq y-annotation annotation))))))
 
 (defmethod display-y-label ((self annotated-borders-mixin) STREAM)
   (compute-y-annotation self STREAM))
 
 (defmethod compute-title-annotation ((self annotated-borders-mixin) STREAM)
-  (with-slots (title-annotation ull uur vur) self
+  (with-slots (title-annotation width) self
     (when (title self)
-      (when (not title-annotation)
-	(multiple-value-bind (ignore1 ignore2 ignore3 top) (margins self)
-	  (declare (ignore ignore1 ignore2 ignore3))
-	  (let* ((umid (values (truncate (+ ull uur) 2)))
-		 (annotation (make-border-annotation self STREAM (title self) 
-						     :top umid vur 'title
-						     0 nil))
-		 (width nil))
-	    (setf (style annotation) (title-text-style self stream))
-	    (setq width (width annotation))
-	    (set-uv-position annotation
-		  (- (values (truncate (+ ull uur) 2)) (values (truncate width 2)))
-		  (+ vur top (- 5)))
-	    (setq title-annotation annotation)))))))
+      (when (not title-annotation)        
+        (let* ((rmid (/ width 2))
+               (annotation (make-border-annotation self STREAM (title self) 
+                                                   rmid 0 'title
+                                                   0 nil))
+               (width nil)
+               (height nil))
+          (setf (style annotation) (title-text-style self stream))
+          (setq width (width annotation))
+          (setq height (height annotation))
+          (set-rs-position annotation
+                           (- rmid (/ width 2))
+                           (- 0 height))
+          (setq title-annotation annotation))))))
 
 (defmethod display-title ((self annotated-borders-mixin) STREAM)
   (compute-title-annotation self STREAM))
@@ -441,56 +391,50 @@ older classes in favor of cleaned up newer ones.  Someday, ...
   ;; This text may appear in click-right menus.
   "Dataset Legend")
 
-(defmethod draw-outline ((self legend-annotation) stream alu)
+(defmethod draw-outline ((self legend-annotation) stream ink)
   "Draw a rectangle marking the edges of the annotation."
   (let ((fudge (margin self)))
     (multiple-value-bind (width height) 
-	(legend-size (graph self) stream (style self))
-      (setq width (truncate width))
-      (setq height (truncate height))
+        (legend-size (graph self) stream (style self))
       (setf (width self) width)
       (setf (height self) height)
-      (multiple-value-bind (left top) (uv-for-display self)
-	(let ((right (+ left width))
-	      (bottom (- top height)))
-	  (multiple-value-setq (left top) (uv-to-screen stream left top))
-	  (multiple-value-setq (right bottom) (uv-to-screen stream right bottom))
-	  (decf left fudge)
-	  (incf right fudge)
-	  (decf top fudge)
-	  (incf bottom fudge)
-	  (draw-rectangle left right bottom top :alu alu :stream stream
-			  :opaque nil :filled nil))))))
+      (multiple-value-bind (left top) (rs-position self)
+        (let ((right (+ left width))
+              (bottom (+ top height)))
+          (decf left fudge)
+          (incf right fudge)
+          (decf top fudge)
+          (incf bottom fudge)
+      (with-rs-coordinates ((graph self) stream)
+        (draw-rectangle* stream left top right bottom :ink ink :filled nil)))))))
 
 (defmethod display ((self legend-annotation) stream)
   (let* ((line-height (truncate (stream-line-height stream)))
-	 (alu (alu self))
-	 (graph (graph self))
-	 (datasets (datasets graph))
-	 (hidden (hidden-datasets graph)))
+         (ink (ink self))
+         (graph (graph self))
+         (datasets (datasets graph))
+         (hidden (hidden-datasets graph)))
     (when (show-graph-legend graph)
       (multiple-value-bind (width height)
-	  (legend-size graph stream (style self))
-	(setq width (truncate width))
-	(setq height (truncate height))
-	(setf (width self) width)
-	(setf (height self) height)
-	(setq height (values (truncate height 
-				       (max 1 
-					    (- (length datasets) 
-					       (length hidden))))))
-	(multiple-value-bind (left top) (uv-for-display self)
-	  (draw-outline self stream alu)
-	  (dolist (dataset datasets)
-	    (unless (or (member dataset hidden)
-			(not (show-legend dataset)))
-	      (decf top line-height)
-	      (display-legend-dataset dataset STREAM graph
-				      left top width height))))))))
+          (legend-size graph stream (style self))
+        (setf (width self) width)
+        (setf (height self) height)
+        (setq height (values (/ height 
+                                       (max 1 
+                                            (- (length datasets) 
+                                               (length hidden))))))
+        (multiple-value-bind (left top) (rs-position self)
+          (draw-outline self stream ink)
+          (dolist (dataset datasets)
+            (unless (or (member dataset hidden)
+                        (not (show-legend dataset)))
+              (display-legend-dataset dataset STREAM graph
+                                      left top width height)
+              (incf top line-height))))))))
 
 (defmethod mark ((self legend-annotation) stream)
   "Draw a rectangle marking the edges of the annotation."
-  (draw-outline self stream %flip))
+  (draw-outline self stream +flipping-ink+))
 
 (defmethod kill :before ((self legend-annotation) stream)
   (declare (ignore stream))
@@ -526,7 +470,7 @@ older classes in favor of cleaned up newer ones.  Someday, ...
   (let ((relative *legend-positions*)
 	(dx (- right left))
 	(dy (- top bottom))
-	(xy nil))
+        (xy nil))
     (dolist (p relative)
       (let ((x (+ left (* (first p) dx)))
 	    (y (+ bottom (* (second p) dy))))
@@ -547,20 +491,20 @@ older classes in favor of cleaned up newer ones.  Someday, ...
     count))
 
 (defmethod default-annotation-position (graph &optional (width 20) (height 20))
-  "Find a place (UV) on the graph where the annotation won't obscure any data."
-  (multiple-value-setq (width height) (uv-to-xy-distance graph width height))
-  (multiple-value-bind (left right bottom top) (xy-inside graph)
-    (let* ((positions (legend-positions width height left top right bottom))
-	   smallest choice)
+  "Find a place (RS) on the graph where the annotation won't obscure any data."
+  (setf width (/ width (x-scale graph)) height (/ height (y-scale graph)))
+  (with-slots (x-min y-min x-max y-max) graph
+    (let* ((positions (legend-positions width height x-min y-max x-max y-min))
+           smallest choice)
       (dolist (position positions)
-	(let* ((left (car position))
-	       (top (second position))
-	       (right (+ left width))
-	       (bottom (- top height))
-	       (count (count-points-in-xy-rectangle graph left top right bottom)))
-	  (if (or (not smallest) (< count smallest))
-	      (setq smallest count choice position))))
-      (apply #'xy-to-uv graph choice))))
+        (let* ((left (car position))
+               (top (second position))
+               (right (+ left width))
+               (bottom (- top height))
+               (count (count-points-in-xy-rectangle graph left top right bottom)))
+          (if (or (not smallest) (< count smallest))
+              (setq smallest count choice position))))
+      (apply #'xy-to-rs graph choice))))
 
 (defmethod legend-text-style ((self annotated-legend-mixin) (stream t))
   (merge-text-styles (parse-text-style '(nil :roman :normal))
@@ -568,16 +512,16 @@ older classes in favor of cleaned up newer ones.  Someday, ...
 
 (defmethod create-legend ((self annotated-legend-mixin) stream)
   "Make a legend annotation and position it."
-  (let* ((legend (make-instance 'legend-annotation :graph self :border :right))
-	 (fudge nil))
+  (let* ((legend (make-instance 'legend-annotation :graph self))
+         (fudge nil))
     (setf (style legend) (legend-text-style self stream))
     (setq fudge (margin legend))
     (push legend (annotations self))
     (multiple-value-bind (width height) (legend-size self stream (style legend))
       (multiple-value-bind (le te)
-	  (default-annotation-position self
-	      (+ width (* 4 fudge)) (+ height (* 4 fudge)))
-	(set-uv-position legend (+ le (* 2 fudge)) (- te (* 2 fudge)))))
+          (default-annotation-position self
+              (+ width (* 4 fudge)) (+ height (* 4 fudge)))
+	(set-rs-position legend (+ le (* 2 fudge)) (+ te (* 2 fudge)))))
     legend))
 
 (defmethod legend-exists-p ((self annotated-legend-mixin))
@@ -595,10 +539,10 @@ older classes in favor of cleaned up newer ones.  Someday, ...
   (declare (ignore stream))
   nil)
 
-(defmethod legend-compute-margins ((self annotated-legend-mixin) STREAM left right bottom top)
+(defmethod legend-compute-margins ((self annotated-legend-mixin) STREAM left top right bottom)
   ;; Don't use up valuable real-estate.  Stay out of the margins.
   (declare (ignore stream))
-  (values left right bottom top))
+  (values left top right bottom))
 
 
 (defclass ANNOTATED-GRAPH

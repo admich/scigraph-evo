@@ -42,9 +42,8 @@ advised of the possiblity of such damages.
     ((plotter
        (x1 y1 x2 y2 level stream)
        (let ((scale 10))			; Pixels per cell
-	 (draw-line (* x1 scale) (* y1 scale) (* x2 scale) (* y2 scale)
-		    :stream stream
-		    :thickness (if (zerop (mod level 10)) 2 0)
+(draw-line* stream (* x1 scale) (* y1 scale) (* x2 scale) (* y2 scale)
+		    :line-thickness (if (zerop (mod level 10)) 2 0)
 		    )))
 
      (map-levels
@@ -53,12 +52,7 @@ advised of the possiblity of such damages.
 	 (do ((level (* dlevel (values (round min dlevel))) (+ level dlevel)))
 	     ((> level max))
 	   (funcall function level)))))
-    (with-output-recording-disabled (stream)
-      #+genera
-      (graphics:with-room-for-graphics (stream 500)
-	(basic-contour #'surface #'plotter #'map-levels stream :x-max 50 :y-max 50
-		       :dx 1.0 :dy 1.0))
-      #-genera
+    (clim:with-output-recording-options(stream :record nil :draw t)
       (basic-contour #'surface #'plotter #'map-levels stream :x-max 50 :y-max 50
 		     :dx 1.0 :dy 1.0))))
 
@@ -192,14 +186,14 @@ advised of the possiblity of such damages.
   (with-slots (contour-surface contour-dx contour-dy) self
     (multiple-value-bind (left right bottom top)
 	(xy-inside graph)
-      (let ((x-u-scale (x-u-scale graph))
-	    (y-v-scale (y-v-scale graph)))
+      (let ((x-scale (x-scale graph))
+	    (y-scale (y-scale graph)))
 	(values contour-surface
 		left
-		(or contour-dx (/ 20 x-u-scale))
+		(or contour-dx (/ 20 x-scale))
 		right
 		bottom
-		(or contour-dy (/ 20 y-v-scale))
+		(or contour-dy (/ 20 y-scale))
 		top)))))
 
 (defmethod draw-contours ((self contour-data) stream graph)
@@ -215,13 +209,14 @@ advised of the possiblity of such damages.
 	(contour-range surface x-min dx x-max y-min dy y-max)
       (multiple-value-bind (major-interval minor-interval)
 	  (major-minor-intervals level-min level-max)
-	(with-slots (alu) self
+	(with-slots (ink) self
 	  (flet ((plotter (x1 y1 x2 y2 level the-graph)
-		   (xy-draw-line the-graph stream x1 y1 x2 y2
-				 :alu alu
-				 :thickness (if (< (abs (mod level major-interval))
-						   (* .01 major-interval))
-						3 0)))
+               (with-xy-coordinates (the-graph stream)
+                 (draw-line* stream x1 y1 x2 y2
+                               :ink ink
+                               :line-thickness (if (< (abs (mod level major-interval))
+                                                 (* .01 major-interval))
+                                              3 0))))
 		 (map-levels (min max function)
 		   (let ((dlevel minor-interval))
 		     (do ((level (* dlevel (values (round min dlevel))) (+ level dlevel)))
@@ -249,13 +244,12 @@ advised of the possiblity of such damages.
 
 (defmethod draw-slider-x-label :after ((self crosshairs)
 				       (graph CONTOUR-GRAPH-MIXIN)
-				       stream alu value text)
+				       stream ink value text)
   (declare (ignore text))
   (let ((string (slider-z-label-string graph (slider-x self) (slider-y self))))
-    (multiple-value-bind (u v) (xy-to-uv graph value (yll graph))
-      (multiple-value-setq (u v) (uv-to-screen stream u v))
-      (incf v (* 3 (stream-line-height stream)))
-      (draw-string string u v :stream stream :alu alu))))
+    (multiple-value-bind (r s) (xy-to-rs graph value (y-min graph))
+      (incf s (* 3 (stream-line-height stream)))
+      (draw-text* stream string r s :ink ink))))
 
 (defclass contour-graph (contour-graph-mixin graph)
   ())

@@ -65,8 +65,7 @@ class.  So you should do the following (in the ws package, 'natch):
 ;;;
 
 (define-application-frame graph-viewer ()
-  ((display-pane :accessor display-pane)
-   (graphs :initform nil :accessor frame-graphs)
+  ((graphs :initform nil :accessor frame-graphs)
    (display-settings :initform nil :accessor display-settings))
   (:panes
    (display :application
@@ -84,8 +83,8 @@ class.  So you should do the following (in the ws package, 'natch):
   (let* ((*package* (find-package :graph)))
     (loop
       (with-simple-restart (scigraph-top-level "Abort to SCIGRAPH Top Level")
-	(redisplay-frame-pane self (get-frame-pane self 'display))
-	(default-frame-top-level self)))))
+	    (redisplay-frame-pane self (get-frame-pane self 'display))
+	    (default-frame-top-level self)))))
 
 (defun redisplay-graphs (self stream)
   ;; Vertically stack the graphs to fill the pane.
@@ -97,42 +96,65 @@ class.  So you should do the following (in the ws package, 'natch):
 (defun view-graphs
     (graphs
      &key
-     (columns 1)
-     autoscale
-     (reverse-video :own-color)
-     (backing-store :when-mapped)
-     create
-     master
-     (type 'graph-viewer)
-     (title "View Graphs")
-     (left 0) (bottom 0)
-     (width 600) (height 400)
-     (wait-until-done nil)
-     &allow-other-keys)
+       (columns 1)
+       autoscale
+       (reverse-video :own-color)
+       (create t) ; nil t :force view find-application-frame
+       master
+       (type 'graph-viewer)
+       (title "View Graphs")
+       (left 0) (bottom 0)
+       (width 600) (height 400)
+       (wait-until-done nil)
+       &allow-other-keys)
   "Display a list of graphs in an interactive program frame."
-  (launch-frame type
-		:backing-store backing-store
-		:master master
-		:create create
-		:title title
-		:width width
-		:height height
-		:left left
-		:bottom bottom
-		:wait-until-done wait-until-done
-		:initializer
-		#'(lambda (application)
-		    (setf (frame-graphs application) graphs)
-		    (setf (display-settings application)
-			  `(:columns ,columns
-			    :reverse-video ,reverse-video
-			    :autoscale ,autoscale))
-		    ;; Now we need to make sure the panes get sized BEFORE
-		    ;; the pane displayer gets run.  By default, this happens
-		    ;; in the opposite order.  Order is important because
-		    ;; scigraph asks the pane how big it is before drawing
-		    ;; the graph.
-		    (resize-sheet (frame-top-level-sheet application) width height))))
+  (let* ((manager (if master (frame-manager master) (find-frame-manager)))
+         (frame
+          (find-application-frame type
+                                  :create create
+                                  :activate nil
+                                  :frame-manager manager
+                                  :left (max 10 left)
+                                  :top (max 10 (- height bottom))
+                                  :width width
+                                  :height height
+                                  :pretty-name title)))
+    (setf (clim:frame-pretty-name frame) title)
+	(clim:reset-frame frame)
+    (let ((graft (graft (port manager))))
+      (clim:layout-frame frame (min width (clim:graft-width graft :units :device))
+                         (min height (clim:graft-width graft :units :device))))
+
+    (setf (frame-graphs frame) graphs)
+    (setf (display-settings frame)
+    	  `(:columns ,columns
+    		         :reverse-video ,reverse-video
+    		         :autoscale ,autoscale))
+    	    ;; Now we need to make sure the panes get sized BEFORE
+    	    ;; the pane displayer gets run.  By default, this happens
+    	    ;; in the opposite order.  Order is important because
+    	    ;; scigraph asks the pane how big it is before drawing
+    	    ;; the graph.
+    (resize-sheet (frame-top-level-sheet frame) width height)
+    ;; start frame
+    (cond (master
+	       (let ((b (clim:stream-input-buffer
+		             (clim:frame-top-level-sheet master)))
+		         (top-level-window (clim:frame-top-level-sheet frame)))
+	         (labels ((set-input-buffer (window buffer)
+			            (setf (clim:stream-input-buffer window) buffer)
+			            (dolist (w (clim:sheet-children window))
+			              (set-input-buffer w buffer))))
+	           (set-input-buffer top-level-window b)
+	           (clim:enable-frame frame)
+	           (clim:redisplay-frame-panes frame :force-p t)
+	           ;; return the window just created
+	           (values top-level-window))))
+	      (T
+           (if wait-until-done
+               (run-frame-top-level frame)
+               (clim-sys:make-process (lambda () (run-frame-top-level frame))
+                                      :name "Scigraph Frame Top Level"))))))
 
 
 

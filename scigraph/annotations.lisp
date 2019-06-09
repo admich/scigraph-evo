@@ -38,8 +38,8 @@ advised of the possiblity of such damages.
 
 (defclass basic-annotation (moving-point)
     ((graph :initform nil :initarg :graph :accessor graph)
-     (alu :initform %draw :initarg :alu :accessor alu)
-     ;; We could probably have a color-mixin since we have an alu variable.
+     (ink :initform +foreground-ink+ :initarg :ink :accessor ink)
+     ;; We could probably have a color-mixin since we have an ink variable.
      (style :initform nil :initarg :style :accessor style)
      (PRESENTATION :initform nil :initarg :presentation :accessor presentation)
      (editable :initform nil :initarg :editable :accessor editable))
@@ -62,37 +62,25 @@ advised of the possiblity of such damages.
     ;; Check to see if I'm clipped.
     (when (setf (displayed? self) (display-p self))
       ;; Okay, try to display, but let the graph clip me too.
-      (with-clipping-to-graph (graph stream nil)
-	;; Move the cursor to shadow clim bugs.
-	(with-character-style ((or style (medium-text-style stream))
-			       stream)	
-	  (multiple-value-bind (sl st) (uv-for-display self)
-	    (multiple-value-setq (sl st) (uv-to-screen stream sl st))
-	    (with-temporary-cursor-position (stream sl st)
-	      (setf (presentation self)
-		;; Capture the output of all the display methods in one big
-		;; presentation, mainly so we can erase it later.
-		(with-output-as-presentation 
-		    (:stream stream
-			     :object self
-			     :single-box (annotation-single-box self)
-			     :type (annotation-presentation-type self))
-		  (call-next-method self stream))))))))))
+      ;; Move the cursor to shadow clim bugs.
+      (with-text-style (stream
+                        (or style (medium-text-style stream)))	
+        (multiple-value-bind (sl st) (rs-position self)
+          (with-temporary-cursor-position (stream sl st)
+            (setf (presentation self)
+                  ;; Capture the output of all the display methods in one big
+                  ;; presentation, mainly so we can erase it later.
+                  (with-output-as-presentation 
+                      (:stream stream
+                               :object self
+                               :single-box (annotation-single-box self)
+                               :type (annotation-presentation-type self))
+                    (call-next-method self stream)))))))))
 
 (defmethod display-p ((self basic-annotation)) t)
 
 (defmethod width ((self basic-annotation)) 0)
 (defmethod height ((self basic-annotation)) 0)
-
-(defmethod uv-for-display ((self basic-annotation))
-  "Get the uv position of (left,top), but constrain it within the graph"
-  (multiple-value-bind (l r b to) (uv-outside (graph self))
-    (decf r (width self))
-    (incf b (height self))
-    (multiple-value-bind (left top) (uv-position self)
-      (multiple-value-setq (left top)
-	(constrain-point-in-rectangle left top l b r to))
-      (values (truncate left) (truncate top)))))
 
 (defmethod erase ((self basic-annotation) STREAM)
   "Erase an annotation by erasing the underlying presentation."
@@ -110,22 +98,6 @@ advised of the possiblity of such damages.
 (defmethod draw-at ((self basic-annotation) stream x y)
   (set-stream-position self stream x y)
   (mark self stream))
-
-(defmethod erase-at ((self basic-annotation) stream x y)
-  (declare (ignore x y))
-  (unmark self stream))
-
-(defmethod unmark ((self basic-annotation) stream)
-  "Undraw the box highlighting the annotation."
-  ;; You cant just erase the presentation because we don't take time
-  ;; to make them during mouse tracking.  If we use the :flip alu, then we can just
-  ;; mark it again.
-  (mark self stream))
-
-(defmethod move :around ((self basic-annotation) stream)
-  "Clip to graph-outside edges while moving the annotation."
-  (with-clipping-to-graph ((graph self) stream nil)
-    (call-next-method self stream)))
 
 ;; Stubs to hang methods upon.
 (defmethod mark ((self basic-annotation) stream) stream)
@@ -153,25 +125,19 @@ advised of the possiblity of such damages.
 (defmethod (setf height) (value (self basic-annotation))
   (setf (slot-value self 'height) (values (truncate value))))
 
-(defmethod display-p ((self annotation))
-  "Let the annotation decide when to clip itself."
-  (with-slots (graph width height) self
-    (multiple-value-bind (left top) (uv-position self)
-      (or (uv-is-inside graph left top)
-	  (uv-is-inside graph (+ left width) (+ top height) )))))
-
 (defmethod display ((self annotation) stream)
   (let ((angle (angle self)))
-    (multiple-value-bind (u v) (uv-for-display self)
-      (multiple-value-setq (u v) (uv-to-screen stream u v))
+    (multiple-value-bind (r s) (rs-position self)
       (let ((record (with-output-as-presentation (:stream stream
 							  :object self
 							  :type 'annotation
 							  :single-box t)
-		      (draw-text-internal stream u v (annotation-text self)
-					  :alu (alu self)
-					  :rotation angle
-					  :stream stream ))))
+		      (draw-text* stream  (annotation-text self) r s 
+					      :ink (ink self)
+                          :transformation (make-rotation-transformation angle (make-point  r s))
+					      :transform-glyphs (not (zerop angle))
+                          :align-y :top
+                          ))))
 	;; Even though we have dimensions by now, we can get a better estimate 
 	;; because there is a presentation box to look at.
 	(when record
@@ -223,13 +189,11 @@ advised of the possiblity of such damages.
 (defmethod mark ((self annotation) stream)
   "Draw a rectangle marking the edges of the annotation."
   (with-slots (width height) self
-    (multiple-value-bind (left top) (uv-for-display self)
+    (multiple-value-bind (left top) (stream-position self stream)
       (let ((right (+ left width))
-	    (bottom (- top height)))
-	(multiple-value-setq (left top) (uv-to-screen stream left top))
-	(multiple-value-setq (right bottom) (uv-to-screen stream right bottom))
-	(draw-rectangle left right bottom top :alu %flip :stream stream
-		  :opaque nil :filled nil)))))
+	    (bottom (+ top height)))
+	(draw-rectangle* stream left top right bottom :ink +flipping-ink+ 
+		   :filled nil)))))
 
 (defmethod edit ((self annotation) STREAM &optional the-string)
   "Interactively edit the text of the annotation."
@@ -239,35 +203,34 @@ advised of the possiblity of such damages.
     (with-output-truncation
      (stream)
      (unwind-protect ;; Make sure that ABORTing does the right thing.
-	 (multiple-value-bind (u v) (uv-for-display self)
-	   (multiple-value-bind (u1 v1) (uv-to-screen stream u v)
-	     (let ((u2 (+ u1 width))
-		   (v2 (+ v1 height)))
-	       (setq the-string (window-edit-text stream u1 v1 u2 v2 the-string))
-	       (set-text self STREAM the-string))))
-       (display self stream)))))
+	 (multiple-value-bind (r s) (rs-position self)
+       (let ((r1 (+ r width))
+             (s1 (+ s height)))
+         (setq the-string (window-edit-text stream r s r1 s1 the-string))
+         (set-text self STREAM the-string)))
+       (with-rs-coordinates ((graph self) stream) (display self stream))))))
 
 (defmethod default-point1 ((a annotation))
-  (multiple-value-list (uv-for-display a)))
+  (multiple-value-list (rs-position a)))
 
 (defmethod map-points-1 ((function t) (a annotation))
   ;; point1 is one of the corners (UV) of the text annotation.
-  (multiple-value-bind (l to) (uv-for-display a)
+  (multiple-value-bind (l to) (rs-position a)
     (let* ((width (or (width a) 0))
 	   (height (or (height a) 0))
 	   (u-mid (+ l (values (truncate width 2))))
-	   (v-mid (- to (values (truncate height 2))))
+	   (v-mid (+ to (values (truncate height 2))))
 	   (points '(:top :bottom :left :right :ltop :lbottom :rtop :rbottom)))
       (labels ((coordinates (corner)
 		 (ecase corner
 		   (:top (values u-mid to ))
-		   (:bottom (values u-mid (- to height)))
+		   (:bottom (values u-mid (+ to height)))
 		   (:left (values l v-mid))
 		   (:right (values (+ l width) v-mid))
 		   (:ltop (values l to))
-		   (:lbottom (values l (- to height)))
+		   (:lbottom (values l (+ to height)))
 		   (:rtop (values (+ l width) to))
-		   (:rbottom (values (+ l width) (- to height))))))
+		   (:rbottom (values (+ l width) (+ to height))))))
 	(dolist (point points)
 	  (multiple-value-bind (u v) (coordinates point)
 	    (funcall function u v point)))))))
@@ -278,7 +241,7 @@ advised of the possiblity of such damages.
   "Create an initial string and interactively edit it."
   (with-slots (graph width height) self
     (let ((initial-string (make-string 0)))
-      (set-uv-position self (ull graph) (vur graph))
+      (set-rs-position self 0 0)
       (set-text self STREAM initial-string)
       (setf (style self) (default-text-style graph stream))
       ;; A nice size:
@@ -347,19 +310,15 @@ advised of the possiblity of such damages.
   (figure-geometry (annotation self) stream)
   (mark (annotation self) stream))
 
-(defmethod erase-at ((self moving-annotation-piece-mixin) stream u v)
-  (declare (ignore u v))
-  (unmark (annotation self) stream))
-
 (defclass moving-annotation-point (moving-annotation-piece-mixin moving-point)
     ((radius :initform 5 :initarg :radius :accessor point-radius))
   (:documentation "The 'point' part of a point-annotation"))
 
-(defmethod draw-xy-point ((object moving-annotation-point) stream &optional (alu %draw))
+(defmethod draw-xy-point ((object moving-annotation-point) stream &optional (ink +foreground-ink+))
   (with-slots (x y radius) object
-    (multiple-value-bind (u v) (xy-to-uv (graph object) x y)
-      (multiple-value-setq (u v) (uv-to-screen stream u v))
-      (device-draw-circle stream u v radius :alu alu :filled nil))))
+    (multiple-value-bind (r s) (xy-to-stream (graph object) x y)
+      (with-local-coordinates (stream 0 0)
+        (draw-circle* stream r s radius :ink ink :filled nil)))))
 
 (define-presentation-type moving-point ()
   :description "a moving point"
@@ -388,20 +347,23 @@ advised of the possiblity of such damages.
      Subclasses must provide MAP-POINTS-1 and MAP-POINTS-2  for
      mapping over consecutive corners of the two widgets."))
 
-(defmethod draw-link ((object annotation-link-mixin) stream &optional (alu %draw))
+(defmethod draw-link ((object annotation-link-mixin) stream &optional (ink +foreground-ink+))
   (let* ((p1 (point1 object))
-	 (p2 (point2 object))
-	 (x1 (pop p1))
-	 (y1 (pop p1))
-	 (x2 (pop p2))
-	 (y2 (pop p2)))
-    (device-draw-line stream x1 y1 x2 y2 :alu alu)))
+         (p2 (point2 object))
+         (x1 (pop p1))
+         (y1 (pop p1))
+         (x2 (pop p2))
+         (y2 (pop p2)))
+    (multiple-value-setq (x1 y1) (rs-to-stream (graph object) x1 y1))
+    (multiple-value-setq (x2 y2) (rs-to-stream (graph object) x2 y2))
+    (with-local-coordinates (stream 0 0)
+      (draw-line* stream x1 y1 x2 y2 :ink ink))))
 
 (defmethod display :after ((object annotation-link-mixin) stream)
   (draw-link object stream))
 
 (defmethod mark :after ((object annotation-link-mixin) stream)
-  (draw-link object stream %flip))
+  (draw-link object stream +flipping-ink+))
 
 (defmethod compute-point2-position ((object annotation-link-mixin))
   (let ((point1 (or (point1 object) (default-point1 object))))
@@ -450,42 +412,42 @@ advised of the possiblity of such damages.
 				:object (point-annotation-point self)
 				:single-box t
 				:type 'moving-point)
-    (draw-xy-point (point-annotation-point self) stream %draw)))
+    (draw-xy-point (point-annotation-point self) stream +foreground-ink+)))
 
 (defmethod mark :after ((self point-annotation) stream)
-  (draw-xy-point (point-annotation-point self) stream %flip))
+  (draw-xy-point (point-annotation-point self) stream +flipping-ink+))
 
 (defmethod display-p :around ((self point-annotation))
   (or (call-next-method)
       (let ((point (point-annotation-point self)))
-	(multiple-value-bind (u v) (xy-position point)
-	  (multiple-value-setq (u v) (xy-to-uv (graph self) u v))
-	  (uv-is-inside (graph self) u v)))))
+        (multiple-value-bind (x y) (xy-position point)
+	  (multiple-value-bind (sx sy) (xy-to-stream (graph self) x y)
+        (region-contains-position-p (inside-box (graph self)) sx sy))))))
 
 (defmethod default-point2 ((a point-annotation))
-  (multiple-value-bind (u v) (xy-position (point-annotation-point a))
-    (multiple-value-setq (u v) (xy-to-uv (graph a) u v))
-    (list u v)))
+  (multiple-value-bind (r s) (xy-position (point-annotation-point a))
+    (multiple-value-setq (r s) (xy-to-rs (graph a) r s))
+    (list r s)))
 
 (defmethod map-points-2 ((function t) (a point-annotation))
   ;; point2 is one of the corners (UV) of the polygon.
-  (multiple-value-bind (u v) (xy-position (point-annotation-point a))
-    (multiple-value-setq (u v) (xy-to-uv (graph a) u v))
-    (funcall function u v (point-annotation-point a))))
+  (multiple-value-bind (r s) (xy-position (point-annotation-point a))
+    (multiple-value-setq (r s) (xy-to-rs (graph a) r s))
+    (funcall function r s (point-annotation-point a))))
 
 ;;; Does anybody call this guy anymore?  JPM 8 May 92.
 ;;; KRA 09JUN93: Yes (method annotate ( annotated-graph-mixin t t))
 (defmethod create ((self point-annotation) STREAM)
   "Create an initial string and interactively edit it."
   (with-slots (graph width height) self
-    (multiple-value-bind (u v)
-	(device-mouse-point STREAM "Choose Point With Mouse")
-      (when (and u v)
-	(multiple-value-setq (u v) (uv-to-xy (graph self) u v))
-	(setf (point-annotation-point self)
-	      (make-instance 'moving-annotation-point :x u :y v :annotation self))
-	(let ((initial-string (make-string 0)))
-	  (set-uv-position self (ull graph) (vur graph))
+    (multiple-value-bind (sx sy)
+        (device-mouse-point STREAM "Choose Point With Mouse")
+      (when (and sx sy)
+        (multiple-value-bind (x y) (stream-to-xy (graph self) sx sy)
+          (setf (point-annotation-point self)
+                (make-instance 'moving-annotation-point :x x :y y :annotation self)))
+        (let ((initial-string (make-string 0)))
+          (set-rs-position self 0 0)
 	  (set-text self STREAM initial-string)
 	  (setf (style self) (default-text-style graph stream))
 	  ;; A nice size:
@@ -523,30 +485,30 @@ advised of the possiblity of such damages.
 
 (defmethod choose-datum (dataset STREAM graph)
   "Return the datum nearest a mouse click."
-  (multiple-value-bind (u1 v1) (device-mouse-point STREAM)
+  (multiple-value-bind (u1 v1) (multiple-value-call #'stream-to-rs graph (device-mouse-point STREAM))
     (when u1
       (multiple-value-bind (ignore1 ignore2 datum)
 	  (nearest-datum graph dataset u1 v1)
 	(declare (ignore ignore1 ignore2))
 	datum))))
 
-(defmethod nearest-datum (graph dataset u v)
-  "Return the x,y datum nearest the given u,v coordinates."
+(defmethod nearest-datum (graph dataset r s)
+  "Return the x,y datum nearest the given r,s coordinates."
   ;; Do this in uv coordinates, because what matters is what looks close on the
   ;; screen, not what seems close in x,y space.
-  (multiple-value-bind (datum u0 v0)
+  (multiple-value-bind (datum r0 s0)
       (closest-point
-	u v
+	r s
 	#'(lambda (function dataset)
 	    (map-data dataset
 		      #'(lambda (datum)
 			  (multiple-value-bind (fric frac) (datum-position dataset datum)
-			    (multiple-value-bind (u1 v1) (xy-to-uv graph fric frac)
-			      (funcall function u1 v1 datum))))
+			    (multiple-value-bind (r1 s1) (xy-to-rs graph fric frac)
+			      (funcall function r1 s1 datum))))
 		      (data dataset)))
 	dataset)
-    (multiple-value-setq (u0 v0) (uv-to-xy graph u0 v0))
-    (values u0 v0 datum)))
+    (multiple-value-setq (r0 s0) (rs-to-xy graph r0 s0))
+    (values r0 s0 datum)))
 
 (defmethod maybe-change-datum ((point-annotation point-annotation) STREAM dataset)
   ;; Constraint function for point annotations that always have to point to a datum.
@@ -554,8 +516,8 @@ advised of the possiblity of such damages.
 	 (graph (graph point-annotation)))
     (multiple-value-bind (x y) (xy-position point)
       (multiple-value-bind (new-x new-y datum)
-	  (multiple-value-bind (u v) (xy-to-uv graph x y)
-	    (nearest-datum graph dataset u v))
+	  (multiple-value-bind (r s) (xy-to-rs graph x y)
+	    (nearest-datum graph dataset r s))
 	(when (not (and (= x new-x) (= y new-y)))
 	  (cond ((displayed? point-annotation)
 		 (erase point-annotation STREAM)
@@ -588,8 +550,8 @@ advised of the possiblity of such damages.
 		       (set-text annotation STREAM (text-for-datum graph self datum)))))
       (multiple-value-bind (x y) (datum-position self datum)
 	(let ((a (annotate-point graph STREAM ""
-				 (xll graph) 
-				 (yur graph) 
+				 (x-min graph) 
+				 (y-max graph) 
 				 x y
 				 closure)))
 	  (when a (move a STREAM)))))))
@@ -646,20 +608,20 @@ advised of the possiblity of such damages.
     (with-output-as-presentation (:stream stream
 				  :object polygon
 				  :type 'polygon-presentation)
-      (draw-xy-polygon polygon stream %draw))))
+      (draw-xy-polygon polygon stream +foreground-ink+))))
 
 (defmethod display-p :around ((self region-annotation))
   (or (call-next-method)
       (let ((graph (graph self)))
 	(some #'(lambda (corner)
-		  (let ((u (first corner))
-			(v (second corner)))
-		    (multiple-value-setq (u v) (xy-to-uv graph u v))
-		    (uv-is-inside graph u v)))
+		  (let ((r (first corner))
+			(s (second corner)))
+		    (multiple-value-setq (r s) (xy-to-rs graph r s))
+		    (rs-is-inside graph r s)))
 	      (corners (region self))))))
 
 (defmethod mark :after ((a region-annotation) stream)
-  (draw-xy-polygon (region a) stream %flip))
+  (draw-xy-polygon (region a) stream +flipping-ink+))
 
 (defmethod set-xy-position :after ((self region-annotation) x y &optional z)
   (declare (ignore x y z))
@@ -674,7 +636,7 @@ advised of the possiblity of such damages.
   (let ((graph (graph a)))
     (dolist (point (corners (region a)))
       (let ((x0 (car point)) (y0 (cadr point)))
-	(multiple-value-setq (x0 y0) (xy-to-uv graph x0 y0))
+	(multiple-value-setq (x0 y0) (xy-to-rs graph x0 y0))
 	(funcall function x0 y0 point)))))
 
 (defun ANNOTATE-REGION (graph stream text x y dataset &optional text-fn)
@@ -694,8 +656,8 @@ advised of the possiblity of such damages.
     (when choices
       (setq gated (create-gated-dataset graph dataset stream))
       (when gated
-	(let* ((text-x (xll graph))
-	       (text-y (yur graph))
+	(let* ((text-x (x-min graph))
+	       (text-y (y-max graph))
 	       (title (name dataset))
 	       (closure (choose-description-function title STREAM choices gated))
 	       (a (and closure

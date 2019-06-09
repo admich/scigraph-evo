@@ -133,7 +133,7 @@ advised of the possiblity of such damages.
 
 (defmethod draw-status-element
 	   ((status-line status-line) (element-name t) string x y stream)
-  (draw-string string x y :stream stream))
+  (clim:draw-text* stream string x y))
 
 (defmethod process-status-element
 	   ((status-line status-line)
@@ -155,9 +155,9 @@ advised of the possiblity of such damages.
 		 (miny top)
 		 (fudge-factor 15)
 		 (maxy bottom))
-	    (with-output-recording-disabled (stream)
-	      (draw-rectangle minx maxx maxy miny :stream stream
-			      :filled t :alu %erase))
+	    (clim:with-output-recording-options (stream :record nil :draw t)
+	      (clim:draw-rectangle* stream minx miny maxx maxy
+			      :filled t :ink clim:+background-ink+))
 	    (if record-p
 		(setf (slot-value status-line presentation-name)
 		      (with-output-as-presentation (:stream stream
@@ -165,7 +165,7 @@ advised of the possiblity of such damages.
 						    :type 'string)
 			(draw-status-element status-line field-name string
 					     minx (+ miny fudge-factor) stream)))
-		(with-output-recording-disabled (stream)
+		(clim:with-output-recording-options (stream :record nil :draw t)
 		  (draw-status-element status-line field-name string
 				       minx (+ miny fudge-factor) stream)))
 	    (force-output stream)		
@@ -265,7 +265,7 @@ advised of the possiblity of such damages.
       (set-status-line
 	frame
 	'status-line-process
-	(let* ((p (frame-top-level-process frame)))
+	(let* ((p (climi::frame-process frame)))
 	  (if p (string-for-process-whostate p) "no process"))))))
 
 (defvar *time-type* :normal
@@ -343,7 +343,7 @@ advised of the possiblity of such damages.
   (defun start-clock ()
     (or clock-process
 	(setq clock-process
-	      (process-run-function "Clock Process" 'clock-top-level))))
+	      (clim-sys:make-process 'clock-top-level :name "Clock Process"))))
   (defun clock () clock-process)
   (defun stop-clock ()
     (let ((process clock-process))
@@ -402,16 +402,16 @@ advised of the possiblity of such damages.
 		       (x column)
 		       (y (+ top 20))
 		       (width (- right left)))
-		  (with-output-recording-disabled (stream)
+		  (clim:with-output-recording-options (stream :record nil :draw t)
 		    (when (< new-therm old-therm)
-		      (draw-line x y
+		      (draw-line* stream x y
 				 (+ x (* old-therm (- width x))) y
-				 :stream stream :alu %erase))
+				 :stream stream :ink clim:+background-ink+))
 		    (when (and (plusp new-therm)
 			       (> new-therm old-therm))
-		      (draw-line (+ x (* old-therm (- width x))) y
-				 (+ x (* new-therm (- width x))) y
-				 :stream stream :alu %draw)
+		      (draw-line* stream (+ x (* old-therm (- width x))) y
+				          (+ x (* new-therm (- width x))) y
+                          :ink clim:+foreground-ink+)
 		      ;; KRA 09JUL93: JM had this f-o commented out.  However,
 		      ;; it lets user see actual progress.  If this is too
 		      ;; slow we should be smarter about drawing fewer lines.

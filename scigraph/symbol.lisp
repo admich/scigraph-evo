@@ -38,88 +38,82 @@ advised of the possiblity of such damages.
 ;;; KRA 27APR93: DRAW-SYMBOL is no longer used in Scigraph, although it may
 ;;; be useful to users.  Perhaps it should be removed.
 
-(defgeneric symbol-displayer (type alu thickness filled))
+(defgeneric symbol-displayer (type ink thickness filled))
 
-(defmethod symbol-displayer ((type (eql :x)) alu thickness filled)
+(defmethod symbol-displayer ((type (eql :x)) ink thickness filled)
   (declare (ignore filled))
   #'(lambda (stream u v size)
-      (draw-line (+ u size) (+ v size) (- u size) (- v size)
-		 :stream stream :alu alu :thickness thickness)
-      (draw-line (- u size) (+ v size) (+ u size) (- v size)
-		 :stream stream :alu alu :thickness thickness)))
+      (draw-line* stream (+ u size) (+ v size) (- u size) (- v size)
+		  :ink ink :line-thickness thickness)
+      (draw-line* stream (- u size) (+ v size) (+ u size) (- v size)
+		 :ink ink :line-thickness thickness)))
 
-(defmethod symbol-displayer ((type (eql :box)) alu thickness filled)
+(defmethod symbol-displayer ((type (eql :box)) ink thickness filled)
   #'(lambda (stream u v size)
-      (draw-rectangle
-       (- u (1- size)) (+ u (1- size))
+      (draw-rectangle* stream
+                       (- u (1- size)) (+ v size) (+ u  size)
        ;; JPM: why is this 2 pixels off?
-       (- v size) (+ v size)
-       :stream stream :alu alu :thickness thickness :filled filled)))
+                       (- v (1+ size)) 
+       :ink ink :line-thickness thickness :filled filled)))
 
-(defmethod symbol-displayer ((type (eql :+)) alu thickness filled)
+(defmethod symbol-displayer ((type (eql :+)) ink thickness filled)
   (declare (ignore filled))
   #'(lambda (stream u v size)
-      (draw-line u (+ v size) u (- v size)
-		 :stream stream :alu alu :thickness thickness)
-      (draw-line (- u size) v (+ u size) v
-		 :stream stream :alu alu :thickness thickness)))
+      (draw-line* stream u (+ v size) u (- v size)
+		  :ink ink :line-thickness thickness)
+      (draw-line* stream (- u size) v (+ u size) v
+		 :ink ink :line-thickness thickness)))
 
-(defmethod symbol-displayer ((type (eql :*)) alu thickness filled)
-  (let ((a (symbol-displayer :+ alu thickness filled))
-	(b (symbol-displayer :x alu thickness filled)))
+(defmethod symbol-displayer ((type (eql :*)) ink thickness filled)
+  (let ((a (symbol-displayer :+ ink thickness filled))
+	(b (symbol-displayer :x ink thickness filled)))
     #'(lambda (stream u v size)
 	(funcall a stream u v size)
 	(funcall b stream u v size))))
 
-(defmethod symbol-displayer ((type (eql :triangle)) alu thickness filled)
+(defmethod symbol-displayer ((type (eql :triangle)) ink thickness filled)
   #'(lambda (stream u v size)
       (device-draw-equilateral-triangle
-       stream u v (* size 2) :alu alu :thickness thickness :filled filled)))
+       stream u v (* size 2) :ink ink :line-thickness thickness :filled filled)))
 
-(defmethod symbol-displayer ((type (eql :diamond)) alu thickness filled)
+(defmethod symbol-displayer ((type (eql :diamond)) ink thickness filled)
   #'(lambda (stream u v size)
 	(device-draw-diamond stream u v (* size 2)
-			     :alu alu :thickness thickness :filled filled)))
+			     :ink ink :thickness thickness :filled filled)))
 
-(defmethod symbol-displayer ((type (eql :point)) alu thickness filled)
+(defmethod symbol-displayer ((type (eql :point)) ink thickness filled)
   ;; Try to make this one of the fast ones.
-  ;; Assume the alu is already cached on the stream as the foreground color.
+  ;; Assume the ink is already cached on the stream as the foreground color.
   (declare (ignore thickness filled))
   #'(lambda (stream u v size)
       (declare (ignore size))
       (draw-point* stream u v)))
 
-(defmethod symbol-displayer ((type (eql :CIRCLE)) alu thickness filled)
-  (if filled
-      #'(lambda (stream u v size)
-	  (draw-circle u v size :stream stream :alu alu :filled filled))
-      #'(lambda (stream u v size)
-	  (draw-circle u v size :stream stream :alu alu
-		       :thickness thickness))))
+(defmethod symbol-displayer ((type (eql :CIRCLE)) ink thickness filled)
+  #'(lambda (stream u v size)
+	  (draw-circle* stream u v size :ink ink :line-thickness thickness :filled filled)))
 
 ;;;
 ;;; Symbol presentation type.
 ;;;
 
 (defun draw-avv-symbol (symbol size stream selected-p)
-  (multiple-value-bind (x y) (stream-cursor-position* stream)
-    (let ((displayer (symbol-displayer symbol %draw 0 nil))
+  (multiple-value-bind (x y) (stream-cursor-position stream)
+    (let ((displayer (symbol-displayer symbol +foreground-ink+ 0 nil))
 	  (h (max (+ size 2) (stream-line-height stream))))
       (if (not selected-p)
 	  ;; Draw something, even if not selected, so that really
 	  ;; tiny symbols are still easy to choose with the mouse.
-	  (draw-rectangle x (+ x h) y (+ y h)
-			  :stream stream
-			  :alu %erase
+	      (draw-rectangle* stream  x (+ y h) (+ x h) y              
+			  :ink +background-ink+
 			  :filled t))
       (funcall displayer stream
 	       (+ x (values (truncate h 2)))
 	       (+ y (values (truncate h 2)))
 	       (values (truncate size 2)))
       (if selected-p
-	  (draw-rectangle x (+ x h) y (+ y h)
-			  :stream stream
-			  :alu %flip
+	      (draw-rectangle* stream x (+ y h) (+ x h) y               
+			  :ink +flipping-ink+
 			  :filled t)))))
 
 (define-presentation-type-abbreviation graph-symbol

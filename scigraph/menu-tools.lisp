@@ -45,25 +45,6 @@ advised of the possiblity of such damages.
 ;;; These things are needed mainly for annotations, but they are kept in a separate
 ;;; file to minimize the clutter in the annotations code.
 
-(defun draw-radio-button (stream object text selected-p &optional size)
-  (declare (ignore object))
-  (or size (setq size (stream-line-height stream)))
-  (let* ((rad (values (truncate (- size 2) 2)))
-	 (offset rad))
-    ;; Since clim insists on flipping the coordinate system...
-    (setq offset (- offset))
-    (multiple-value-bind (x y) (stream-cursor-position* stream)
-      (draw-circle (+ x offset) (+ y offset)
-		   rad :stream stream :filled selected-p)
-      (if selected-p
-	  (clim:with-text-face (stream :bold)
-	    (draw-string text (+ x (* size 2))
-			 (+ y (* offset 2))
-			 :stream stream))
-          (draw-string text (+ x (* size 2))
-		       (+ y (* offset 2))
-		       :stream stream)))))
-
 (clim:define-presentation-type-abbreviation button-subset (&key alist (test 'equal))
   `(subset-alist ,alist :test ,test))
 
@@ -128,44 +109,19 @@ advised of the possiblity of such damages.
 		  (mapcar #'(lambda (fam)
 			      `(,fam :value ,fam :style (,fam :roman :normal)))
 			  '(:fix :serif :sans-serif))
-		  :prompt "Family"))
+		  :label "Family"
+          :associated-window *standard-input*))
 	 (style (when family (menu-choose (character-style-choices family)
-					  :prompt "Character Styles"))))
+                                      :label "Character Styles"
+                                      :associated-window *standard-input*))))
     style))
-
-(defvar *EDIT-DELIMITER* #\return)
-(defvar *min-window-height* 100)
-(defvar *min-window-width* 220)
 
 (defun WINDOW-EDIT-TEXT (window left top right bottom &optional string)
   "Edit text in the given region of the window."
-  ;; This only reads a single line...	  
-  ;; Note that clim 0.9 ignores the default string.
-  (if (> top bottom) (psetq bottom top top bottom))
-  (if (> left right) (psetq right left left right))
-  (multiple-value-bind (x y) (stream-cursor-position* window)
-    (let* ((prompt "Input a string")
-	   (prompt-width (string-size window nil "~A: " prompt))
-	   (cursor-x (max 0 (- left prompt-width)))
-	   (cursor-y top)
-	   string-width)
-      (unwind-protect
-           (catch :abort
-             (stream-set-cursor-position* window cursor-x cursor-y)
-             (with-output-recording-disabled (window)
-               (setq string (accept 'string :stream window :default string
-                                    :prompt prompt))
-               (setq string-width (string-size window nil string))
-               ;; erase editor typeout
-               (let* ((right (+ cursor-x prompt-width string-width))
-                      (bottom (+ top (stream-line-height window)))
-		     (rect (make-rectangle* cursor-x top right bottom)))
-                 (draw-rectangle cursor-x right top bottom
-                                 :stream window
-                                 :filled t
-                                 :alu %erase)
-                 (stream-replay window rect))))
-	(stream-set-cursor-position* window x y))))
-  string)
+  (declare (ignore left top right bottom))
+  (let ((new-string string))
+      (accepting-values (window :own-window t)
+        (setf new-string (accept 'string :stream window :prompt "Input a string" :default string :view '(text-editor-view :ncolumns 80 :nlines 10))))
+      new-string))
 
 

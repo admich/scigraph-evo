@@ -77,11 +77,6 @@ advised of the possiblity of such damages.
       (format stream "~a" (name self))))
 
 
-;;; Since Objects do not have negative inheritance, it is difficult to get rid of
-;;; behavior once it has been mixed in (append combinded methods for example).  Thus
-;;; methods for the OBJECT protocols are sometimes broken out into separate mixins
-;;; with the suffix -OB-MIXIN.  This gives you better control over pop-edit etc.
-
 ;;; Handy macro.  
 ;;; Make a completely unspecific version of the method.  If this
 ;;; gets called, it's a bug in the setup of the code.

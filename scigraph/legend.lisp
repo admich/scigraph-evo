@@ -115,7 +115,7 @@ advised of the possiblity of such damages.
   "A sort of poor man's auto scaling for legend data."
   (let ((fudge .1))
     (multiple-value-bind (left right bottom top)
-	(apply #'values (auto-scale-limits legend-data :both nil nil nil nil))
+        (apply #'values (auto-scale-limits legend-data :both nil nil nil nil))
       (values (- left fudge) (+ right fudge) (- bottom fudge) (+ top fudge)))))
 
 (defmacro with-bar-width ((dataset width) &body body)
@@ -125,7 +125,7 @@ advised of the possiblity of such damages.
        (setf (bar-width ,dataset) .old-width.))))
 
 (defmethod display-legend-datums ((self graph-data-legend-mixin) STREAM
-				  graph left bottom width height)
+				  graph left top width height)
   "Display some points in the legend area to show the current symbology settings."
   (let ((legend-data (legend-data self)))
     ;; The contract here is that the legend data knows about the data structure of
@@ -133,27 +133,29 @@ advised of the possiblity of such damages.
     ;; long as the displayer doesn't assume too much about the datums coming from the
     ;; legend data.
     (with-bar-width (self (bar-width legend-data))
-      (multiple-value-bind (xll xur yll yur) (legend-scale-limits self legend-data)
-	;; Warp the graph to think its edges are the edges of the legend.
-	(with-graph-coordinates (graph STREAM
-				       left (+ left width) bottom (+ bottom height)
-				       xll xur yll yur)
-	  (with-clipping-to-graph (graph STREAM t)
-	    (with-alu (stream (alu self))
-	      ;; SELF provides the displayer, but LEGEND-DATA provides the mapper.
-	      (let ((displayer (legend-datum-displayer self graph)))
-		(map-data legend-data
-			  #'(lambda (datum)
-			      (multiple-value-bind (x y)
-				  (datum-position legend-data datum)
-				(multiple-value-setq (x y) (xy-to-uv graph x y))
-				(multiple-value-setq (x y) (uv-to-screen stream x y))
-				(funcall displayer stream x y datum)))
-			  (data legend-data))))))))))
+      (multiple-value-bind (x-min x-max y-min y-max) (legend-scale-limits self legend-data)
+        (multiple-value-bind (left top) (rs-to-stream graph left top)
+          ;; Warp the graph to think its edges are the edges of the legend.
+          (with-ink (stream (ink self))
+            ;; SELF provides the displayer, but LEGEND-DATA provides the mapper.
+            (let ((legend-graph (make-instance 'basic-graph
+                                               :height height :width width
+                                               :x-min x-min :x-max x-max
+                                               :y-min y-min :y-max y-max)))
+              (set-inside-box legend-graph (make-rectangle* left top (+ left width) (+ top height)) stream)
+              (let ((displayer (legend-datum-displayer self legend-graph)))
+                (map-data legend-data
+                          #'(lambda (datum)
+                              (multiple-value-bind (x y)
+                                  (datum-position legend-data datum)
+                                (multiple-value-setq (x y) (xy-to-rs legend-graph x y))
+                                (with-rs-coordinates (legend-graph stream)
+                                  (funcall displayer stream x y datum))))
+                          (data legend-data))))))))))
 
-(defmethod display-legend-string ((self graph-data-legend-mixin) STREAM graph u v)
+(defmethod display-legend-string ((self graph-data-legend-mixin) STREAM graph r s)
   "Display the string part of the legend."
-  (text graph STREAM u v (legend-string self)))
+  (draw-text* stream (legend-string self) r s :align-y :top))
 
 (defmethod display-legend-dataset ((self t) STREAM graph left bottom width height)
   (declare (ignore stream graph left bottom width height))
@@ -162,7 +164,7 @@ advised of the possiblity of such damages.
 
 (defmethod display-legend-dataset ((self graph-data-legend-mixin) STREAM
 				   graph left bottom width height)
-  "Display legend data and string in given UV region of graph."
+  "Display legend data and string in given RS region of graph."
   (declare (ignore width))
   (when (show-legend self)
     (display-legend-datums self STREAM graph
@@ -188,7 +190,7 @@ advised of the possiblity of such damages.
   (if (show-graph-legend self)
       (let ((x 0)
 	    (y 0))
-	(with-character-style (style the-stream)	; bind line height
+	(with-text-style (the-stream style)	; bind line height
 	  (dolist (d (datasets self))
 	    (when (show-legend d)
 	      (multiple-value-bind (dx dy)	; assumes vertical orientation of legends
@@ -198,29 +200,28 @@ advised of the possiblity of such damages.
 	(values x y))
       (values 0 0)))
 
-(defmethod legend-compute-margins ((self graph-legend-mixin) STREAM left right bottom top)
+(defmethod legend-compute-margins ((self graph-legend-mixin) STREAM left top right bottom)
   ;; Give the legend a chance to modify the margin area of the graph.
   (setf (legend-offset self) bottom)
   (multiple-value-bind (foo legh) (legend-size self stream)
       (declare (ignore foo))
-      (values left right (+ legh bottom) top)))
+      (values left top right (+ legh bottom))))
 
 (defmethod compute-margins :around ((self graph-legend-mixin) STREAM)
-  (multiple-value-bind (left right bottom top) (call-next-method)
-    (legend-compute-margins self stream left right bottom top)))
+  (multiple-value-bind (left top right bottom) (call-next-method)
+    (legend-compute-margins self stream left top right bottom)))
 
 (defmethod display-labels :after ((self graph-legend-mixin) STREAM)
   (when (show-graph-legend self) (display-legend self STREAM)))
 
 (defmethod display-legend ((self graph-legend-mixin) STREAM)
   "Display each legend dataset in the margin area."
-  (multiple-value-bind (px foo py bar) (uv-inside self)
-    (declare (ignore foo bar))
-    (setq py (- py (legend-offset self)))
-    (with-character-style ((parse-text-style *legend-style*) stream)
-      (let ((hidden (hidden-datasets self)))
-	(dolist (dataset (datasets self))
-	  (or (member dataset hidden)
-	      (multiple-value-bind (dx dy) (legend-size dataset stream)
-		(display-legend-dataset dataset STREAM self px py dx dy)
-		(setq py (- py dy)))))))))
+  (with-text-style (stream (parse-text-style *legend-style*))
+    (let* ((hidden (hidden-datasets self))
+           (px 0) 
+           (py (+ (height self) (legend-offset self)))) 
+      (dolist (dataset (datasets self))
+        (or (member dataset hidden)
+            (multiple-value-bind (dx dy) (legend-size dataset stream)
+              (display-legend-dataset dataset STREAM self px py dx dy)
+              (setq py (+ py dy))))))))

@@ -26,36 +26,6 @@ advised of the possiblity of such damages.
 |#
 
 (in-package :dwim)
-
-;;;*****************
-;;; Lisp Extensions
-;;;*****************
-
-(defmacro with-rem-keywords ((new-list list keywords-to-remove) &body body)
-  `(let ((,new-list (with-rem-keywords-internal ,list ,keywords-to-remove)))
-    ,@body))
-
-(defun with-rem-keywords-internal (keyword-list keywords-to-remove)
-  ;; Remove leading keywords.
-  (loop (unless (member (car keyword-list) keywords-to-remove)
-	  (return))
-	(setf keyword-list (cddr keyword-list)))
-  (when keyword-list
-    (do* ((kwl keyword-list cons2)	
-	  (cons1 (cdr kwl) (cdr kwl))
-	  (cons2 (cdr cons1) (cdr cons1)))
-	 ((null cons2) keyword-list)
-      (when (member (car cons2) keywords-to-remove)
-	(setf (cdr cons1) (cddr cons2))
-	(setf cons2 kwl)))))
-
-(defun rem-keywords (list keywords-to-remove)
-  (with-rem-keywords (new-list list keywords-to-remove)
-    (copy-list new-list)))
-
-
-
-
 ;;; **************************
 ;;; UNIX Environmental Support
 ;;; **************************
@@ -66,9 +36,6 @@ advised of the possiblity of such damages.
   (assert (stringp string))
   #+lucid
   (lucid::environment-variable string)
-
-  #+lispworks
-  (lispworks:environment-variable name)
 
   #+allegro
   (system:getenv string)
@@ -86,12 +53,6 @@ advised of the possiblity of such damages.
 
   #+scl
   (cdr (assoc string ext:*environment-list* :test #'string=)))
-
-(defun process-run-function (name-or-keywords function &rest args)
-  (let* ((new-args (copy-list args)) ; in case of stack-allocation
-	 (predicate
-	  (if args #'(lambda () (apply function new-args)) function)))
-    (clim-sys:make-process predicate :name name-or-keywords)))
 
 (defun type-specifier-p (object)
   "Determine if OBJECT is a valid type specifier"

@@ -142,7 +142,7 @@ advised of the possiblity of such damages.
    (object &key presentation window)
   (list object window presentation))
 
-(install-command 'clim::accept-values 'com-pop-edit)
+(add-command-to-command-table 'com-pop-edit 'clim::accept-values :name t :errorp nil)
 
 
 ;;;
@@ -209,7 +209,7 @@ advised of the possiblity of such damages.
      ,(and TERPRI? `(terpri ,STREAM))))
 
 (defmacro popup-accept-forms-warn ((STREAM &optional (TERPRI? t)) STRING &rest ARGS)
-  `(with-character-face (:bold ,stream)
+  `(with-text-face (,stream :bold)
      (redisplayable-format
        ,STREAM
        "WARNING:<<~?>>"

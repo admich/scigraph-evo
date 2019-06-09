@@ -95,7 +95,7 @@ advised of the possiblity of such damages.
    (object &key presentation window)
   (list object window presentation))
 
-(install-command 'clim::accept-values 'com-pop-edit-dataset)
+(add-command-to-command-table 'com-pop-edit-dataset 'clim::accept-values :name t :errorp nil)
 
 (define-presentation-to-command-translator com-pop-edit-dataset
    (graph-data :command-name com-pop-edit-dataset
@@ -226,20 +226,19 @@ advised of the possiblity of such damages.
 
 (defmethod pop-accept-items progn ((self graph-data-color-mixin)
 				   MENU-STREAM GRAPH-WINDOW)
-  (when (color-stream-p graph-window)
-    (multiple-value-bind (x y) (stream-cursor-position* menu-stream)
-      (setf (slot-value self 'color)
-	(accept 'color-presentation
-		:view +list-pane-view+
-		:stream menu-stream
-		:default (slot-value self 'color)
-		:prompt "Color"))
-      (terpri menu-stream)
-      (multiple-value-bind (x1 y1) (stream-cursor-position* menu-stream)
-	(stream-set-cursor-position* menu-stream (+ x 250) (+ y 50))
-	(with-room-for-graphics (menu-stream)
-	  (draw-color-swatch menu-stream (slot-value self 'color) nil nil 35))
-	(stream-set-cursor-position* menu-stream x1 y1)))))
+  (multiple-value-bind (x y) (stream-cursor-position menu-stream)
+    (setf (slot-value self 'color)
+          (accept 'color-presentation
+                  :view +list-pane-view+
+                  :stream menu-stream
+                  :default (slot-value self 'color)
+                  :prompt "Color"))
+    (terpri menu-stream)
+    (multiple-value-bind (x1 y1) (stream-cursor-position menu-stream)
+      (setf (stream-cursor-position menu-stream) (values (+ x 250) (+ y 50)))      
+      (with-room-for-graphics (menu-stream)
+        (draw-color-swatch menu-stream (slot-value self 'color) nil nil 35))
+      (setf (stream-cursor-position menu-stream) (values x1 y1)))))
 
 (defmethod pop-accept-items progn ((self graph-data-auto-scale-mixin)
 				   MENU-STREAM GRAPH-WINDOW)
@@ -262,13 +261,13 @@ advised of the possiblity of such damages.
       (popup-accept-forms (MENU-STREAM)
 	(pa-string "Axis Limits")
 	(when (member type '(:y nil))
-	  (pa-slot xll " X Left"   'number)
-	  (pa-slot xur " X Right"  'number))
+	  (pa-slot x-min " X Min"   'number)
+	  (pa-slot x-max " X Max"  'number))
 	(when (member type '(:x nil))
-	  (pa-slot yll " Y Bottom" 'number)
-	  (pa-slot yur " Y Top"    'number))))))
+	  (pa-slot y-min "Y Min " 'number)
+	  (pa-slot y-max " Y Maz"    'number))))))
 
-(defmethod pop-accept-items progn ((self GRAPH-BORDER-OB-MIXIN)
+(defmethod pop-accept-items progn ((self GRAPH-BORDER-MIXIN)
 				   MENU-STREAM GRAPH-WINDOW)
   (declare (ignore GRAPH-WINDOW))
   (with-slots (show-border x-auto-tick x-dtick
@@ -306,13 +305,13 @@ advised of the possiblity of such damages.
 					:zero-abcissa :zero-ordinate)))
 	)))
 
-(defmethod pop-accept-unsatisfied-warnings or ((self GRAPH-BORDER-OB-MIXIN))
+(defmethod pop-accept-unsatisfied-warnings or ((self GRAPH-BORDER-MIXIN))
   (with-slots (x-auto-tick x-dtick y-auto-tick y-dtick) SELF
     (popup-accept-forms (STREAM)
       (or (not (or x-auto-tick x-dtick))
 	  (not (or y-auto-tick y-dtick))))))
 
-(defmethod pop-accept-items progn ((self graph-grid-ob-mixin)
+(defmethod pop-accept-items progn ((self graph-grid-mixin)
 				   MENU-STREAM GRAPH-WINDOW)
   (declare (ignore GRAPH-WINDOW))
   (with-slots (show-grid x-auto-grid x-dgrid y-auto-grid y-dgrid) self
@@ -330,7 +329,7 @@ advised of the possiblity of such damages.
 	(unless y-auto-grid
 	  (pa-slot y-dgrid "  Grid spacing" 'number))))))
 
-(defmethod pop-accept-unsatisfied-warnings or ((SELF graph-grid-ob-mixin))
+(defmethod pop-accept-unsatisfied-warnings or ((SELF graph-grid-mixin))
   (with-slots (x-auto-grid x-dgrid y-auto-grid y-dgrid) SELF
     (popup-accept-forms (STREAM)
       (or (not (or x-auto-grid x-dgrid))

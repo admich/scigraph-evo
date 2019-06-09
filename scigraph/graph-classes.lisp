@@ -77,16 +77,16 @@ powerful, and you may want to remove some of the mixins.
 
 (defmethod display-data ((self timeseries-data) STREAM graph)
   "Add optimization because you know the data is sorted (along time axis)."
-  (with-alu (stream (alu self))
-    ;; Fixup the alu just once, since its the same for every datum.
+  (with-ink (stream (ink self))
+    ;; Fixup the ink just once, since its the same for every datum.
     (let* ((displayer (datum-displayer self graph))
 	   (thresh (let ((n (missing-data-threshold self)))
 		     (if n (float (abs n)))))
 	   (-thresh (and thresh (- thresh)))
-	   (H (stream-height stream))
-	   (Trans (xy-to-uv-transform graph))
-	   (start (float (xll graph)))
-	   (end (float (xur graph)))
+           (H 0) ; admich (stream-height stream)
+	   (Trans (xy-to-rs-transform graph))
+	   (start (float (x-min graph)))
+	   (end (float (x-max graph)))
 	   (last-datum nil)
 	   (last-x nil)
 	   (last-y nil)
@@ -108,18 +108,18 @@ powerful, and you may want to remove some of the mixins.
 	       ;; Draw them as points so they aren't invisible.
 	       (let ((size 2))
 		 (multiple-value-bind (frog dog)
-		     (xy-to-uv-distance graph (- last-x x) (- last-y y))
+		     (xy-to-rs-distance graph (- last-x x) (- last-y y))
 		   (when (or (> (abs frog) size) (> (abs dog) size))
-		     (multiple-value-bind (u v) (xy-to-uv graph last-x last-y)
-		       (multiple-value-bind (sx sy) (uv-to-screen stream u v)
-			 (device-draw-circle stream (1- sx) (1+ sy) size
+		     (multiple-value-bind (u v) (xy-to-rs graph last-x last-y)
+		       (multiple-value-bind (sx sy) (values u v)
+			 (draw-circle* stream (1- sx) (1+ sy) size
 					     :filled t
-					     :alu (alu self))))
-		     (multiple-value-bind (u v) (xy-to-uv graph x y)
-		       (multiple-value-bind (sx sy) (uv-to-screen stream u v)
-			 (device-draw-circle stream (1- sx) (1+ sy) size
+					     :ink (ink self))))
+		     (multiple-value-bind (u v) (xy-to-rs graph x y)
+		       (multiple-value-bind (sx sy) (values u v)
+			 (draw-circle* stream (1- sx) (1+ sy) size
 					     :filled t
-					     :alu (alu self)))))))))
+					     :ink (ink self)))))))))
 	(map-data self #'(lambda (datum)
 			   (multiple-value-bind (x y) (datum-position self datum)
 			     (or (floatp x) (setq x (float x)))
@@ -152,7 +152,7 @@ powerful, and you may want to remove some of the mixins.
 	  (map-data dataset
 		    #'(lambda (datum)
 			(multiple-value-bind (x y) (datum-position dataset datum)
-			  (multiple-value-setq (x y) (xy-to-uv graph x y))
+			  (multiple-value-setq (x y) (xy-to-rs graph x y))
 			  (when (>= x u)
 			    (return-from nearest-datum (or last-datum datum))))
 			(setq last-datum datum))
@@ -160,33 +160,22 @@ powerful, and you may want to remove some of the mixins.
 	  last-datum)
 	(call-next-method graph dataset u v))))
 					
-
-(defclass GRAPH
-    ( presentable-graph-mixin
-
-      graph-datasets-ob-mixin
-      graph-legend-mixin
-
-      graph-zoom-mixin
-      graph-slider-interaction-mixin
-      graph-slider-mixin
-
-      graph-mouse-resolution-mixin
-      graph-auto-scale-extensions-mixin
-      graph-limits-mixin			
-      graph-auto-scale-mixin
-      graph-grid-ob-mixin
-      graph-grid-mixin
-      ;; KRA 27JUL93: We don't know how to rotate charaters yet.
-      ;; However see CLASS ANNOTATED-GRAPH and
-      ;; ANNOTATED-HORIZONTAL-Y-BORDER-MIXIN-KLUDGE
-      horizontal-y-border-mixin
-      graph-datasets-mixin
-      graph-border-ob-mixin
-      graph-border-mixin
-      basic-graph
-      named-mixin
-      )
+(defclass graph
+    (presentable-graph-mixin
+     graph-datasets-ob-mixin
+     graph-legend-mixin
+     graph-zoom-mixin
+     graph-slider-interaction-mixin
+     graph-slider-mixin
+     graph-mouse-resolution-mixin
+     graph-auto-scale-extensions-mixin
+     graph-limits-mixin
+     graph-auto-scale-mixin
+     graph-grid-mixin
+     graph-datasets-mixin
+     graph-border-mixin
+     basic-graph
+     named-mixin)
   ()
   (:documentation "A bordered graph with datasets, and sliders."))
 
