@@ -29,7 +29,7 @@
   (xy-to-rs graph 1 2))
 
 (defmethod display-legend-datums ((self graph-data-legend-mixin) STREAM
-				  graph left top width height)
+                                  (graph pie-graph-mixin) left top width height)
   "Display some points in the legend area to show the current symbology settings."
   (with-ink (stream (ink self))
     (draw-rectangle* stream left top (+ left width) (+ top height))))
