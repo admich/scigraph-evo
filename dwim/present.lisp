@@ -209,16 +209,15 @@ advised of the possiblity of such damages.
 			  :sequence sequence
 			  :select-action select-action)))
     (labels ((draw-one (item value pretty-name selected-p stream)
-	       (with-output-as-presentation
-		   (:type choice-type
-			  :stream stream
-			  :object (funcall make-choice
-					   :choices choices
-					   :choice item
-					   :value value
-					   :documentation pretty-name)
-			  :single-box t)
-		 (clim:with-room-for-graphics (stream)
+               (with-output-as-presentation (stream
+                                             (funcall make-choice
+                                                      :choices choices
+                                                      :choice item
+                                                      :value value
+                                                      :documentation pretty-name)
+                                             choice-type
+                                             :single-box t)
+                 (clim:with-room-for-graphics (stream)
                    (clim:formatting-cell (stream)
                      (funcall drawer stream value pretty-name selected-p)))))
 	     (draw-all (sequence stream)
@@ -227,12 +226,13 @@ advised of the possiblity of such damages.
 			(pretty-name (funcall name-key item))
 			(selected-p (funcall selection-test value selected-value)))
 		   (draw-one item value pretty-name selected-p stream)))))
-      (with-output-as-presentation (:stream stream :single-box t)
-	(clim:formatting-item-list
+      (with-output-as-presentation (stream nil 'expression
+                                           :single-box t)
+        (clim:formatting-item-list
             (stream :n-columns n-columns
                     :n-rows n-rows
                     :x-spacing '(2 :character))
-	 (draw-all sequence stream))))))
+          (draw-all sequence stream))))))
 
 (define-presentation-type alist-subset (&key alist)
   ;; Yes, I know clim 1.0 has one of these, but it doesn't work in avv mode!.

@@ -204,7 +204,6 @@ advised of the possiblity of such damages.
                           #:with-stack-list
                           #:define-presentation-to-command-translator
                           #:define-presentation-type
-                          #:with-output-as-presentation
                           #:with-output-truncation
                           #:with-redisplayable-output
                           #:alist-member

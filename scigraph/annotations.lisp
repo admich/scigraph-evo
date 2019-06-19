@@ -70,10 +70,8 @@ advised of the possiblity of such damages.
                   ;; Capture the output of all the display methods in one big
                   ;; presentation, mainly so we can erase it later.
                   (with-output-as-presentation 
-                      (:stream stream
-                               :object self
-                               :single-box (annotation-single-box self)
-                               :type (annotation-presentation-type self))
+                      (stream self (annotation-presentation-type self)
+                               :single-box (annotation-single-box self))
                     (call-next-method self stream)))))))))
 
 (defmethod display-p ((self basic-annotation)) t)
@@ -127,10 +125,10 @@ advised of the possiblity of such damages.
 (defmethod display ((self annotation) stream)
   (let ((angle (angle self)))
     (multiple-value-bind (r s) (rs-position self)
-      (let ((record (with-output-as-presentation (:stream stream
-							  :object self
-							  :type 'annotation
-							  :single-box t)
+      (let ((record (with-output-as-presentation (stream
+                                                  self
+                                                  'annotation
+                                                  :single-box t)
 		      (draw-text* stream  (annotation-text self) r s 
 					      :ink (ink self)
                           :transformation (make-rotation-transformation angle (make-point  r s))
@@ -407,10 +405,8 @@ advised of the possiblity of such damages.
   (:documentation "An annotation with a pointer to some uv point."))
 
 (defmethod display :after ((self point-annotation) stream)
-  (with-output-as-presentation (:stream stream
-				:object (point-annotation-point self)
-				:single-box t
-				:type 'moving-point)
+  (with-output-as-presentation (stream (point-annotation-point self) 'moving-point
+                                       :single-box t)
     (draw-xy-point (point-annotation-point self) stream +foreground-ink+)))
 
 (defmethod mark :after ((self point-annotation) stream)
@@ -604,9 +600,9 @@ advised of the possiblity of such damages.
 
 (defmethod display :after ((a region-annotation) stream)
   (let ((polygon (region a)))
-    (with-output-as-presentation (:stream stream
-				  :object polygon
-				  :type 'polygon-presentation)
+    (with-output-as-presentation (stream
+                                  polygon
+                                  'polygon-presentation)
       (draw-xy-polygon polygon stream +foreground-ink+))))
 
 (defmethod display-p :around ((self region-annotation))

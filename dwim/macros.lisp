@@ -165,20 +165,6 @@ advised of the possiblity of such damages.
            ((type ,name) ,@ARGS)
            ,@(cdr highlighter))))))
 
-(defmacro with-output-as-presentation
-    ((&key stream object (type ''expression)
-	   single-box (allow-sensitive-inferiors t)
-	   dont-snapshot-variables
-	   record-type)
-     &body body)
-  dont-snapshot-variables allow-sensitive-inferiors
-  (or record-type (setq record-type ''clim::standard-presentation))
-  `(clim:with-output-as-presentation
-    (,stream ,object ,type
-     :allow-sensitive-inferiors ,allow-sensitive-inferiors
-     :single-box ,single-box :record-type ,record-type)
-    ,@body))
-
 (defmacro with-output-truncation ((stream) &body body)
   `(clim:with-end-of-line-action
     (,stream :allow)

@@ -160,11 +160,9 @@ advised of the possiblity of such damages.
 			      :filled t :ink clim:+background-ink+))
 	    (if record-p
 		(setf (slot-value status-line presentation-name)
-		      (with-output-as-presentation (:stream stream
-						    :object string
-						    :type 'string)
-			(draw-status-element status-line field-name string
-					     minx (+ miny fudge-factor) stream)))
+		      (with-output-as-presentation (stream string 'string)
+                (draw-status-element status-line field-name string
+                                     minx (+ miny fudge-factor) stream)))
 		(clim:with-output-recording-options (stream :record nil :draw t)
 		  (draw-status-element status-line field-name string
 				       minx (+ miny fudge-factor) stream)))

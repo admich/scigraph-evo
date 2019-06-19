@@ -581,10 +581,8 @@ advised of the possiblity of such damages.
 	  (declare (ignore x1 y1))
 	  (with-temporary-cursor-position (stream x0 y0)
 	    (with-output-as-presentation
-		(:stream STREAM
+		(STREAM self (graph-presentation-type self)
 			 :single-box t
-			 :object self
-			 :type (graph-presentation-type self)
 			 :allow-sensitive-inferiors 
 			 (graph-present-inferiors-p self))
 	      (call-next-method self STREAM)))))))

@@ -866,10 +866,8 @@ way.  The graph takes the union of the limits returned.
 (defmethod display-data :around ((self presentable-data-mixin) STREAM graph)
   (if (present-self-p self)
       (with-output-as-presentation
-       (:stream stream
+       (stream self (graph-presentation-type self)
 		:single-box nil
-		:object self
-		:type (graph-presentation-type self)
 		:allow-sensitive-inferiors t)
        (call-next-method SELF stream graph))
     (progn
@@ -883,10 +881,9 @@ way.  The graph takes the union of the limits returned.
     ;; see comment above regarding cursor positioning
     (with-temporary-cursor-position (stream sl st)				
       (with-output-as-presentation
-	(:stream stream
-	 :single-box t :object self
-	 :type (graph-presentation-type self)
-	 :allow-sensitive-inferiors nil)
+          (stream self (graph-presentation-type self)
+                  :single-box t
+                  :allow-sensitive-inferiors nil)
 	(call-next-method SELF STREAM graph left bottom width height)))))
 
 (defmethod datum-presentation-type ((self presentable-data-mixin) (datum t))
@@ -901,9 +898,9 @@ way.  The graph takes the union of the limits returned.
     (if (graph-present-inferiors-p self)
 	#'(lambda (stream u v datum)
 	    (with-output-as-presentation
-	      (:stream stream
-	       :object (datum-presentation self datum)
-	       :type (datum-presentation-type self datum))
+	      (stream
+	       (datum-presentation self datum)
+	       (datum-presentation-type self datum))
 	      (funcall f stream u v datum))
 	    (values u v))
 	f)))
