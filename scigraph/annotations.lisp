@@ -39,7 +39,6 @@ advised of the possiblity of such damages.
 (defclass basic-annotation (moving-point)
     ((graph :initform nil :initarg :graph :accessor graph)
      (ink :initform +foreground-ink+ :initarg :ink :accessor ink)
-     ;; We could probably have a color-mixin since we have an ink variable.
      (style :initform nil :initarg :style :accessor style)
      (PRESENTATION :initform nil :initarg :presentation :accessor presentation)
      (editable :initform nil :initarg :editable :accessor editable))

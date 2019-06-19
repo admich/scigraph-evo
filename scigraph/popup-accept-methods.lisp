@@ -224,20 +224,20 @@ advised of the possiblity of such damages.
       (setq symbologies (list :scatter)))	  ; DEFAULT
     ))
 
-(defmethod pop-accept-items progn ((self graph-data-color-mixin)
+(defmethod pop-accept-items progn ((self graph-data-auto-color-mixin)
 				   MENU-STREAM GRAPH-WINDOW)
   (multiple-value-bind (x y) (stream-cursor-position menu-stream)
-    (setf (slot-value self 'color)
+    (setf (slot-value self 'ink)
           (accept 'color-presentation
                   :view +list-pane-view+
                   :stream menu-stream
-                  :default (slot-value self 'color)
+                  :default (slot-value self 'ink)
                   :prompt "Color"))
     (terpri menu-stream)
     (multiple-value-bind (x1 y1) (stream-cursor-position menu-stream)
       (setf (stream-cursor-position menu-stream) (values (+ x 250) (+ y 50)))      
       (with-room-for-graphics (menu-stream)
-        (draw-color-swatch menu-stream (slot-value self 'color) nil nil 35))
+        (draw-color-swatch menu-stream (slot-value self 'ink) nil nil 35))
       (setf (stream-cursor-position menu-stream) (values x1 y1)))))
 
 (defmethod pop-accept-items progn ((self graph-data-auto-scale-mixin)

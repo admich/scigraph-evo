@@ -367,7 +367,7 @@ the equation."))
 (defclass LINE-DATA
     (line-mixin
      ;; A simplified version for GRAPH-DATA
-     graph-data-color-mixin
+     graph-data-auto-color-mixin
      graph-datum-line-symbology-mixin
      basic-graph-datum-symbology-mixin
      basic-graph-data)

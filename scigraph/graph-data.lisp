@@ -541,24 +541,19 @@ PROTOCOL:
     "Provides :SCATTER :LINE :STEP and :BAR symbologies for plotting data."))
 
 
-(defclass GRAPH-DATA-COLOR-MIXIN ()
-    ((color :initform :gold :initarg :color :accessor color)))
+(defclass GRAPH-DATA-AUTO-COLOR-MIXIN ()
+  ())
 
-(defmethod update-ink-for-stream ((self graph-data-color-mixin) (stream t))
-  "Match the ink to the stream."
-  ;; Don't forget that encapsulation may occur, and the stream may not
-  ;; be a window at all.  (continuation-output-size, hardcopy streams, etc.)
-  ;; Therefore specializing the stream argument may be a temptation worth avoiding.
-  (setf (ink self) (ink-for-stream stream (color self))))
+(defgeneric auto-set-dataset-color (dataset colors)
+  (:documentation "Set automatically the color for a dataset. Return the chosen color."))
 
-(defmethod display-data :before ((self graph-data-color-mixin) (stream t) (graph t))
-  (update-ink-for-stream self stream))
+(defmethod auto-set-dataset-color (dataset colors)
+  '())
 
-(defmethod display-legend-dataset :before ((self graph-data-color-mixin)
-					   STREAM graph left bottom width height)
-  (declare (ignore graph left bottom width height))
-  (update-ink-for-stream self stream))
-
+(defmethod auto-set-dataset-color ((dataset graph-data-auto-color-mixin) colors)
+  (with-slots (ink) dataset
+    (unless (and ink (not (eql ink +foreground-ink+)))
+      (setf ink (first colors)))))
 
 #|
 HOW AUTO-SCALING WORKS.

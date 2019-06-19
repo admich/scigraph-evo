@@ -114,7 +114,7 @@ advised of the possiblity of such damages.
     (add-dataset graph
 		 (make-instance
 		  'equation-data
-		  :color :salmon
+		  :ink +salmon+
 		  :symbologies (list :line-symbol)
 		  :data-symbol :circle
 		  :pattern nil
@@ -139,7 +139,7 @@ advised of the possiblity of such damages.
 	 (dataset (make-instance 'graph-data
 		    :name "Categorical Data"
 		    :data data
-		    :color :red
+		    :ink +red+
 		    :pattern t
 		    :bar-width 0.9
 		    :symbologies '(:bar))))

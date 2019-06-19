@@ -133,24 +133,16 @@ advised of the possiblity of such damages.
    #:x-label
    #:y-label
 
-   #:color
    #:color-presentation
-   #:ink
-   #:ink-for-color
-   #:ink-for-stream
-   #:*color-specifications*
-   #:device-line-thickness
-   #:device-line-joint-shape
    #:device-filled-p
    #:device-fill-pattern
-   #:initialize-color-system
 
    #:graph-data
    #:timeseries-data
    #:presentable-data-mixin
    #:graph-data-limits-mixin
    #:graph-data-auto-scale-mixin
-   #:graph-data-color-mixin
+   #:graph-data-auto-color-mixin
    #:graph-data-symbology-mixin
    #:graph-data-add-datum-mixin
    #:presentable-graph-data-legend-mixin

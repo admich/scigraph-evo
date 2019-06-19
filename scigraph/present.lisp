@@ -87,10 +87,10 @@ or at top left."
 	         :height h :width width)
       (stream-increment-cursor-position stream 0 50))))
 
-(defun window-reverse-video (window &optional (fore :white) (back :black))
+(defun window-reverse-video (window &optional (fore +white+) (back +black+))
   "Change the foreground/background colors of the window."
-  (setf (medium-foreground window) (ink-for-stream window fore)
-        (medium-background window) (ink-for-stream window back)))
+  (setf (medium-foreground window) fore
+        (medium-background window) back))
 
 (defun autoscale-graphs (graphs autoscale-type)
   "Let the graphs mutually decide what scaling limits to use.
@@ -137,8 +137,8 @@ or at top left."
   "Fill the window with columns graphs."
   (when (and (not (eql reverse-video :own-color)))
     (if reverse-video
-	(window-reverse-video stream :white :black)
-        (window-reverse-video stream :black :white)))
+	(window-reverse-video stream +white+ +black+)
+        (window-reverse-video stream +black+ +white+)))
   (if autoscale (autoscale-graphs graphs autoscale))
   (window-clear stream)
   (when graphs

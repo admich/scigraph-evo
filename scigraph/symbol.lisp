@@ -84,7 +84,7 @@ advised of the possiblity of such damages.
 (defmethod symbol-displayer ((type (eql :point)) ink thickness filled)
   ;; Try to make this one of the fast ones.
   ;; Assume the ink is already cached on the stream as the foreground color.
-  (declare (ignore thickness filled))
+  (declare (ignore thickness filled ink))
   #'(lambda (stream u v size)
       (declare (ignore size))
       (draw-point* stream u v)))
@@ -120,6 +120,5 @@ advised of the possiblity of such damages.
     (&key (symbols '(:+ :x :* :point :triangle
 		     :box :diamond :circle))
 	  (size 10) graph)
-  ;; Can't simply call this 'color' because that already names a class.
   `((member ,@symbols)
     :name-key string-capitalize))

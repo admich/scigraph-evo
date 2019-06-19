@@ -27,99 +27,35 @@ advised of the possiblity of such damages.
 
 (in-package :graph)
 
-;;;
-;;; A feeble color naming facility.  These names represent a selection
-;;; of about 30 of the more than 700 names defined by X11.  We don't want
-;;; too many colors, because menus should be short and because there are limits to
-;;; how many colors X Windows will let you use.
-;;;
+(defvar *colors*
+  (concatenate 'list 
+               (list
+                +green+
+                +magenta+
+                +cyan+
+                +red+
+                +gold+
+                +sienna+
+                +salmon+
+                +orange+
+                +aquamarine+
+                +black+)
+               (make-contrasting-inks
+                (contrasting-inks-limit (find-port))))
+  "Used for pop-edit.")
 
-(defvar *color-specifications*
-	'(;; Primary colors.
-	  (:Green   0.0 1.0 0.0)
-	  ;;(:Blue    0.0 0.0 1.0)
-	  (:Magenta 1.0 0.0 1.0)
-	  (:Cyan    0.0 1.0 1.0)
-	  ;;(:Yellow  1.0 1.0 0.0)
-	  (:Red     1.0 0.0 0.0)
+(defmethod name ((color climi::named-color))
+  (with-slots ((name climi::name)) color
+    name))
 
-	  ;; Earth Tones
-	  (:gold 1.0 .843 0.0)
-	  (:goldenrod .855 .647 .125)
-	  (:khaki .941 .902 .549)
-	  (:olivedrab .420 .557 .137)
-	  (:dark-khaki .741 .718 .420)
-	  (:peachpuff 1.0 .855 .725)
-	  (:sienna 0.627 0.322 0.176)	
-	  (:orange 1.0 0.647 0.0)
-	  ;; (:maroon 0.690 0.188 0.376)	
-	  (:firebrick 0.698 0.133 0.133)
-	  (:salmon 0.980 0.502 0.447)
-	  (:aquamarine 0.498 1.0 0.831)
-	  ;; (:dark-green 0.0 0.392 0.0)
-	  ;; (:green-yellow 0.678 1.0 0.184)
-	  (:pink 1.000 0.753 0.796)
-	  ;; (:orchid .855 .439 .839)
-	  (:violet-red 0.816 0.125 0.565)
-	  (:violet 0.933 0.510 0.933)
-	  
-	  ;; Grays (chosen to make sense in 8-bit color)
-	  ;;(:dark-slate-gray 0.184 0.31 0.31)
-	  (:Black   0.0 0.0 0.0)
-	  (:gray25 0.25 0.25 0.25)
-	  (:gray50 0.500 0.500 0.500)
-	  (:gray75 0.75 0.75 0.75)
-	  (:White   1.0 1.0 1.0)
-
-	  ;; Blues
-	  (:royal-blue .255 .412 .882)
-	  (:sky-blue 0.529 0.808 0.922)
-	  (:steel-blue 0.275 0.510 0.706) 
-	  (:light-blue 0.678 0.847 0.902)
-	  ;; (:navy-blue 0.0 0.0 0.502)
-	  (:dark-turquoise 0.0 0.808 0.820)
-	  (:turquoise 0.251 0.878 0.816)
-	  ;; (:indian-red 0.804 0.361 0.361)
-	  )
-  "List of (color-name red green blue) for each color a user 
-   can choose from for drawing graphs.")
-
-(defvar *colors* nil "Used for pop-edit.")
-(defvar *color-hash* (make-hash-table :test 'equal))
-
-(defun ink-for-color (color-name)
-    "Translate a color name to an ink/alu"
-    (or *colors* (initialize-color-system))
-    (or (gethash color-name *color-hash* nil)
-	(gethash :white *color-hash* nil)))
-
-(defun make-color-choices (color-specifications &optional reinitialize)
-    "Makes an Alist of colors to choose from."
-    (if reinitialize (setq *color-hash* (make-hash-table)))
-    (loop for (name red green blue) in color-specifications
-       do
-         (setf (gethash name *color-hash*) (clim:make-rgb-color red green blue))
-         (pushnew (list (string-capitalize name) :value name)
-                  *colors*
-                  :test #'equal)))
-
-(defun initialize-color-system ()
-  "Initialize the color screen if available."
-  ;; Called by INK-FOR-COLOR the first time an ink is needed.
-  (make-color-choices *color-specifications*))
-
-(defun ink-for-stream (stream color-name)
-  "Translate a color name to an ink/alu"
-  (ink-for-color color-name))
-
-(defun draw-color-swatch (stream color-name pretty-name selected-p &optional size)
+(defun draw-color-swatch (stream color pretty-name selected-p &optional size)
   "Draw a sample of the given color at the current cursor position."
   (declare (ignore pretty-name))
   (or size (setq size (stream-line-height stream)))
   (let ((rad (1- (values (truncate size 2)))))
     (multiple-value-bind (x y) (stream-cursor-position stream)
       (draw-circle* stream (+ x rad 1) (+ y rad 1) rad
-		   :filled t :ink (ink-for-stream stream color-name))
+		   :filled t :ink color)
       (draw-rectangle* stream x (+ y size -1) (+ x size -1) y 
 		      :filled nil :ink (if selected-p +foreground-ink+ +background-ink+)))))
 
@@ -127,12 +63,11 @@ advised of the possiblity of such damages.
 		       (stream *standard-output*)
 		       (colors *colors*))
   "Display the current colors and their names."
-  (dolist (color-name colors)
-    (setq color-name (third color-name))
+  (dolist (color colors)
     (terpri stream)
-    (draw-color-swatch stream color-name nil nil)
+    (draw-color-swatch stream color nil nil)
     (stream-increment-cursor-position stream 15 0)
-    (format stream " ~A " color-name)))
+    (format stream " ~A " (name color))))
 
 (defun display-gray-wash (&optional
 			  (stream *standard-output*)
@@ -159,8 +94,8 @@ advised of the possiblity of such damages.
 
 (clim:define-presentation-type-abbreviation color-presentation ()
   ;; Can't simply call this 'color' because that already names a class.
-  `((member ,@(mapcar #'third *colors*))
-    :name-key string-capitalize
+  `((member ,@*colors*)
+    :name-key name
     :printer present-color
     :highlighter highlight-color))
 

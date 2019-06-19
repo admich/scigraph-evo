@@ -293,7 +293,7 @@ advised of the possiblity of such damages.
 
 (defclass GRAPH-DATASETS-MIXIN (graph-border-mixin basic-graph)
   ((datasets :initform nil :initarg :datasets :reader datasets)
-   (hidden-datasets :initform nil :initarg :datasets :accessor hidden-datasets))
+   (hidden-datasets :initform nil :initarg :hidden-datasets :accessor hidden-datasets))
   (:documentation 
    "Allows several sets of data to be displayed on the graph, each in its own way."))
 
@@ -316,6 +316,13 @@ advised of the possiblity of such damages.
 				       &key &allow-other-keys)
   (with-slots (datasets) self
     (when datasets (setf (datasets self) datasets))))
+
+(defmethod display :before ((self graph-datasets-mixin) STREAM)
+  (let* ((datasets (datasets self)) 
+         (used-color (map 'list #'ink datasets))
+         (colors (set-difference *colors* used-color)))
+    (loop for dataset in datasets do
+         (setf colors (remove (auto-set-dataset-color dataset colors) colors)))))
 
 (defmethod display :after ((self graph-datasets-mixin) STREAM)
   (graph-display-data self STREAM))

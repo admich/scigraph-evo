@@ -81,27 +81,27 @@
         (d1 (make-instance 'gr:graph-data
 			                 :symbologies '(:line-symbol)
                              :line-style 2
-                             :color :orange
+                             :ink +orange+
 			                 :data '((0 0) (.1 .5) (.2 .3) (.3 .2) (.4 .8) (.5 .2))))
         (d2 (make-instance 'gr:graph-data
 			                 :symbologies '(:step)
-                             :color :sienna
+                             :ink +sienna+
 			                 :data '((0 .1) (.05 .2) (.2 .3) (.4 .4) (.5 .5) (.6 .8))))
         (d3 (make-instance 'gr:equation-data
                            :symbologies '(:line)
-                           :color :red
+                           :ink +red+
                            :equation '(* 2 (cos x))
                            :variable 'x :min (* -2 pi) :max (* 2 pi) :increment .01
                            :line-style 0))
         (d4 (make-instance 'gr:graph-data
                            :name "Categorical Data"
                            :data '((0.0 3.0) (1.0 4.0) (2.0 3.5))
-                           :color :red
+                           :ink +red+
                            :bar-width 0.9
                            :symbologies '(:bar)))
         (d5 (make-instance 'gr:histogram-data
                            :name "100 gaussian random sample"
-                           :color :orange                           
+                           :ink +orange+                           
                            :sample-data (gaussian-random-sample 100)
                            :symbologies '(:bar)))
         (d6 (make-instance 'contour-data
