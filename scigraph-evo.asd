@@ -36,3 +36,9 @@
                (:file "dwim/present")
                (:file "dwim/extensions")
                (:file "dwim/wholine")))
+
+(defsystem #:scigraph-evo/contrib
+  :depends-on (#:scigraph-evo #:local-time)
+  :serial t
+  :components ((:file "contrib/timestamp")
+               (:file "contrib/pie")))
