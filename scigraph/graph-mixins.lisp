@@ -322,6 +322,7 @@ advised of the possiblity of such damages.
          (used-color (map 'list #'ink datasets))
          (colors (set-difference *colors* used-color)))
     (loop for dataset in datasets do
+         (unless colors (setf colors *colors*))
          (setf colors (remove (auto-set-dataset-color dataset colors) colors)))))
 
 (defmethod display :after ((self graph-datasets-mixin) STREAM)
