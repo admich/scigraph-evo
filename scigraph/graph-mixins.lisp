@@ -581,7 +581,7 @@ advised of the possiblity of such damages.
 	  (declare (ignore x1 y1))
 	  (with-temporary-cursor-position (stream x0 y0)
 	    (with-output-as-presentation
-		(STREAM self (graph-presentation-type self)
+		(STREAM self (graph-presentation-type self self)
 			 :single-box t
 			 :allow-sensitive-inferiors 
 			 (graph-present-inferiors-p self))
@@ -614,6 +614,8 @@ advised of the possiblity of such damages.
 	   nil)
 	  (t (call-next-method self stream)))))
 
-(defmethod graph-presentation-type ((self presentable-graph-mixin)) 'graph)
+(defmethod graph-presentation-type ((self presentable-graph-mixin) graph)
+  (declare (ignore self graph))
+  'graph)
 (defmethod graph-present-inferiors-p ((self presentable-graph-mixin)) 't)
 (defmethod present-self-p ((any t)) nil)

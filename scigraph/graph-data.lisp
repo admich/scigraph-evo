@@ -861,12 +861,14 @@ way.  The graph takes the union of the limits returned.
 	
 (defclass presentable-data-mixin (presentable-mixin) ())
 
-(defmethod graph-presentation-type ((self presentable-data-mixin)) 'graph-data)
+(defmethod graph-presentation-type ((self presentable-data-mixin) graph)
+  (declare (ignore self graph))
+  'graph-data)
 
 (defmethod display-data :around ((self presentable-data-mixin) STREAM graph)
   (if (present-self-p self)
       (with-output-as-presentation
-       (stream self (graph-presentation-type self)
+       (stream self (graph-presentation-type self graph)
 		:single-box nil
 		:allow-sensitive-inferiors t)
        (call-next-method SELF stream graph))
@@ -881,7 +883,7 @@ way.  The graph takes the union of the limits returned.
     ;; see comment above regarding cursor positioning
     (with-temporary-cursor-position (stream sl st)				
       (with-output-as-presentation
-          (stream self (graph-presentation-type self)
+          (stream self (graph-presentation-type self t)
                   :single-box t
                   :allow-sensitive-inferiors nil)
 	(call-next-method SELF STREAM graph left bottom width height)))))

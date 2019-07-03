@@ -4,37 +4,41 @@
 
 ;;;; pie chart
 
-(defmethod output-record-refined-position-test ((record climi::draw-ellipse-output-record) x y)
-  (with-slots ((start-angle climi::start-angle)
-               (end-angle climi::end-angle)
-               (center-x climi::center-x)
-               (center-y climi::center-y)) record
-    (let ((dx (- x center-x))
-          (dy (- center-y y)))        
-      (if (and  (< dx 0) (> dy 0))
-          (< start-angle (- (atan dy dx) (* 2 pi)) end-angle)
-          (< start-angle (atan dy dx) end-angle)))))
+(define-presentation-type pie-graph-data () :inherit-from 'graph-data)
 
-(defmethod highlight-output-record ((record climi::draw-ellipse-output-record)  stream (state (eql :highlight)))
-  (let* ((ink (displayed-output-record-ink record)))
+(define-presentation-method presentation-refined-position-test ((type pie-graph-data) record x y)
+  (let ((ellipse-record (elt (output-record-children record) 0)))
+    (with-slots ((start-angle climi::start-angle)
+                 (end-angle climi::end-angle)
+                 (center-x climi::center-x)
+                 (center-y climi::center-y)) ellipse-record
+      (let ((dx (- x center-x))
+            (dy (- center-y y)))
+        (if (and  (< dx 0) (> dy 0))
+            (< start-angle (- (atan dy dx) (* 2 pi)) end-angle)
+            (< start-angle (atan dy dx) end-angle))))))
+
+(define-presentation-method highlight-presentation ((type pie-graph-data) record stream (state (eql :highlight))) 
+  (let* ((ellipse-record (elt (output-record-children record) 0))
+         (ink (displayed-output-record-ink ellipse-record)))
     (multiple-value-bind (i h s) (color-ihs ink)
       (let ((new-ink (make-ihs-color i h (* 0.4 s))))
         (with-slots ((start-angle climi::start-angle)
                  (end-angle climi::end-angle)
                  (radius climi::radius-1-dx)
                  (center-x climi::center-x)
-                 (center-y climi::center-y)) record
+                 (center-y climi::center-y)) ellipse-record
           (draw-circle* stream center-x center-y radius :start-angle start-angle :end-angle end-angle :ink new-ink))))))
 
-(defmethod highlight-output-record ((record climi::draw-ellipse-output-record)  stream (state (eql :unhighlight)))
-  (let* ((ink (displayed-output-record-ink record)))
-    (multiple-value-bind (i h s) (color-ihs ink)
-      (with-slots ((start-angle climi::start-angle)
-                   (end-angle climi::end-angle)
-                   (radius climi::radius-1-dx)
-                   (center-x climi::center-x)
-                   (center-y climi::center-y)) record
-        (draw-circle* stream center-x center-y radius :start-angle start-angle :end-angle end-angle :ink ink)))))
+(define-presentation-method highlight-presentation ((type pie-graph-data) record stream (state (eql :unhighlight)))
+  (let* ((ellipse-record (elt (output-record-children record) 0))
+         (ink (displayed-output-record-ink ellipse-record)))
+    (with-slots ((start-angle climi::start-angle)
+                 (end-angle climi::end-angle)
+                 (radius climi::radius-1-dx)
+                 (center-x climi::center-x)
+                 (center-y climi::center-y)) ellipse-record
+      (draw-circle* stream center-x center-y radius :start-angle start-angle :end-angle end-angle :ink ink))))
 
 
 (defclass pie-graph-mixin () ()
@@ -43,6 +47,10 @@
 (defclass pie-graph (pie-graph-mixin
                       annotated-graph)
   ())
+
+(defmethod graph-presentation-type ((self presentable-data-mixin) (graph pie-graph-mixin))
+  (declare (ignore self graph))
+  'pie-graph-data)
 
 (defmethod display-data ((self essential-graph-data-map-mixin)  stream (graph pie-graph-mixin))
       (multiple-value-bind (cx cy) (xy-to-rs graph 0 0)
