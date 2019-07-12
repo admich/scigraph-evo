@@ -3,8 +3,7 @@
 (export '(pie-graph))
 
 ;;;; pie chart
-
-(define-presentation-type pie-graph-data () :inherit-from 'graph-data)
+(defclass pie-graph-data (graph-data)())
 
 (define-presentation-method presentation-refined-position-test ((type pie-graph-data) record x y)
   (let ((ellipse-record (elt (output-record-children record) 0)))
