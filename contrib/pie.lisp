@@ -93,21 +93,6 @@
 
 #|
 ----------------------------------------------------------------------
-(define-presentation-type number-or-none ()
-  :description "a number or None"
-  :printer ((object stream)
-	    (if object
-		(present object 'number :stream stream)
-		(write-string "None" stream)))
-  :parser ((stream)
-	   (let ((string (read-token stream)))
-	     (if (string-equal (string-trim '(#\space) string) "None")
-		 (values nil 'number-or-none)
-		 (let ((number (read-from-string string)))
-		   (if (numberp number)
-		       (values number 'number-or-none)
-		       (input-not-of-required-type stream string 'number-or-none)))))))
-
 (defun input-not-of-required-type (stream object type)
   "Use this to signal a parser failure and cause backtracking."
   (declare (ignore stream))

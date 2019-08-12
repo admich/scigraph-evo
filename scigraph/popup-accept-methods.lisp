@@ -130,24 +130,24 @@ advised of the possiblity of such damages.
 (defmethod pop-accept-items progn ((self graph-data-x-offset-mixin) MENU-STREAM GRAPH-WINDOW)
   (declare (ignore GRAPH-WINDOW))
   (popup-accept-forms (MENU-STREAM)
-    (pa-slot x-offset " X Offset" 'number-or-none)))
+    (pa-slot x-offset " X Offset" '(null-or-type number))))
 
 (defmethod pop-accept-items progn ((self graph-data-y-offset-mixin) MENU-STREAM GRAPH-WINDOW)
   (declare (ignore GRAPH-WINDOW))
   (popup-accept-forms (MENU-STREAM)
-    (pa-slot y-offset " Y Offset" 'number-or-none)))
+    (pa-slot y-offset " Y Offset" '(null-or-type number))))
 
 (defmethod pop-accept-items progn ((self graph-data-xy-offset-mixin) MENU-STREAM GRAPH-WINDOW)
   (declare (ignore GRAPH-WINDOW))
   (popup-accept-forms (MENU-STREAM)
-    (pa-slot x-offset " X Offset" 'number-or-none)
-    (pa-slot y-offset " Y Offset" 'number-or-none)))
+    (pa-slot x-offset " X Offset" '(null-or-type number))
+    (pa-slot y-offset " Y Offset" '(null-or-type number))))
 
 (defmethod pop-accept-items progn ((self graph-data-dither-mixin) MENU-STREAM GRAPH-WINDOW)
   (declare (ignore GRAPH-WINDOW))
   (popup-accept-forms (MENU-STREAM)
-    (pa-slot x-dither " X Dither" 'number-or-none)
-    (pa-slot y-dither " Y Dither" 'number-or-none))
+    (pa-slot x-dither " X Dither" '(null-or-type number))
+    (pa-slot y-dither " Y Dither" '(null-or-type number)))
   
   (with-slots (x-dither y-dither) self
     (if x-dither (setq x-dither (max 0.0 x-dither)))   ; make it positive.
@@ -194,7 +194,7 @@ advised of the possiblity of such damages.
   (with-slots (bar-width symbologies) self
     (when (contains-symbology-class symbologies :bar)
       (popup-accept-forms (MENU-STREAM)
-        (pa-slot bar-width "Bar Width" 'number-or-none)))))
+        (pa-slot bar-width "Bar Width" '(null-or-type number))))))
 
 (defmethod pop-accept-items progn ((self graph-datum-scatter-symbology-mixin)
 				   MENU-STREAM GRAPH-WINDOW)
@@ -277,7 +277,7 @@ advised of the possiblity of such damages.
 	(pa-string "Labels and Borders")
 	(pa-slot title       	  "  Title"          '(null-or-type string))
 	(pa-slot x-label     	  "  X axis label"   '(null-or-type string))
-	(pa-slot x-digits    	  "  X digits"       'number-or-none)
+	(pa-slot x-digits    	  "  X digits"       '(null-or-type number))
 	(pa-slot x-tick-numbering "  X Tick numbering"
 		 '(alist-member :alist
 				(("None" :value nil)
@@ -289,7 +289,7 @@ advised of the possiblity of such damages.
 	(unless (or x-auto-tick x-dtick)
 	  (pa-warn "For X axis: Choose Auto tick or provide a tick spacing"))
 	(pa-slot y-label	  "  Y axis label"   '(null-or-type string))
-	(pa-slot y-digits	  "  Y digits"       'number-or-none)
+	(pa-slot y-digits	  "  Y digits"       '(null-or-type number))
 	(pa-slot y-tick-numbering "  Y Tick numbering"
 		 '(alist-member :alist
 				(("None" :value nil)
@@ -395,10 +395,10 @@ advised of the possiblity of such damages.
 				   MENU-STREAM GRAPH-WINDOW)
   (declare (ignore GRAPH-WINDOW))
   (popup-accept-forms (MENU-STREAM)
-    (pa-slot min "Minimum Value" 'number-or-none)
-    (pa-slot max "Maximum Value" 'number-or-none)
-    (pa-slot bin-count "Number of Bins" 'number-or-none)
-    (pa-slot bin-size "Bin Size" 'number-or-none))
+    (pa-slot min "Minimum Value" '(null-or-type number))
+    (pa-slot max "Maximum Value" '(null-or-type number))
+    (pa-slot bin-count "Number of Bins" '(null-or-type number))
+    (pa-slot bin-size "Bin Size" '(null-or-type number)))
 
   (with-slots (bin-count bin-size min max) self
     (when (and (numberp min) (numberp max))

@@ -328,25 +328,3 @@ or at top left."
    (stream)
    (funcall continuation object stream)))
   
-
-
-;;; Clim 0.9 seems to be missing a bunch of presentation types,
-;;; probably because AND and OR are missing.  Here we kludge up 
-;;; a solution until CLIM gets better.
-;;; CLIM IS BETTER NOW (CLIM 2.0.BETA).  LETS GET RID OF THIS.  JPM.
-
-(define-presentation-type number-or-none ()
-  :description "a number or None"
-  :printer ((object stream)
-	    (if object
-		(present object 'number :stream stream)
-		(write-string "None" stream)))
-  :parser ((stream)
-	   (let ((string (read-token stream)))
-	     (if (string-equal (string-trim '(#\space) string) "None")
-		 (values nil 'number-or-none)
-		 (let ((number (read-from-string string)))
-		   (if (numberp number)
-		       (values number 'number-or-none)
-		       (input-not-of-required-type stream string 'number-or-none)))))))
-
