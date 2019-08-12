@@ -122,16 +122,6 @@ advised of the possiblity of such damages.
 ;;; Presentation types
 ;;;
 
-(define-presentation-type sheet ()
-   :parser ((stream)
-	    (progn
-	      (read-char stream)
-	      (error "The SHEET presentation type is broken.  Sorry.")))
-   :printer ((window stream)
-	     (let ((*print-readably* nil))
-               (format stream "~A" window)))
-   :description "a window")
-
 (defun menu-execute-no-side-effects (item)
   (cond ((atom item) item)
 	((atom (cdr item)) (cdr item))

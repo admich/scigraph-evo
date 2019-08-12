@@ -49,7 +49,6 @@ advised of the possiblity of such damages.
            #:input-position
            #:insertion-pointer
            #:catching-parser-failures
-           #:sheet
            #:invisible-object
            #:window-under-mouse
            #:change-size
@@ -89,7 +88,6 @@ advised of the possiblity of such damages.
            #:insertion-pointer
            #:catching-parser-failures
            #:suggest
-           #:sheet
            #:invisible-object
            #:window-under-mouse
            #:change-size
