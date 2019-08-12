@@ -294,21 +294,6 @@ or at top left."
 		      :ink (if selected-p +foreground-ink+ +background-ink+))
       (force-output stream))))
 
-#-clim-2
-(define-presentation-type dash-pattern ()
-  :description "a line dash pattern"
-  :parser ((stream)
-	   (completing-from-suggestions (stream)
-	     (dotimes (i 7)
-	       (suggest (princ-to-string i) i))))
-  :printer ((object stream)
-	    (draw-dash-sample stream object nil nil))
-  :accept-values-displayer
-  ((stream object query-identifier)
-   (accept-values-choose-from-sequence
-     stream *dash-pattern-alist* object query-identifier
-     :drawer #'draw-dash-sample)))
-
 (define-presentation-type-abbreviation dash-pattern ()
   `((member ,@(let ((numbers nil))
 		(dotimes (i 7) (push i numbers))

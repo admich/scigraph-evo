@@ -169,7 +169,7 @@ advised of the possiblity of such damages.
     (when (cdr symbology-choices)
       (popup-accept-forms (MENU-STREAM)
         (pa-slot symbologies "Plotting styles"
-		 `(alist-subset :alist ,symbology-choices))))))
+		 `(subset-alist ,symbology-choices))))))
 
 (defmethod pop-accept-items progn ((self graph-datum-line-symbology-mixin)
 				   MENU-STREAM GRAPH-WINDOW)
@@ -301,9 +301,8 @@ advised of the possiblity of such damages.
 	(unless (or y-auto-tick y-dtick)
 	  (pa-warn "For Y axis: Choose Auto tick or provide a tick spacing"))
 	(pa-slot visible-borders "  Visible Borders"
-		 '(alist-subset :alist (:left :right :bottom :top
-					:zero-abcissa :zero-ordinate)))
-	)))
+		 '(subset-alist (:left :right :bottom :top
+					:zero-abcissa :zero-ordinate))))))
 
 (defmethod pop-accept-unsatisfied-warnings or ((self GRAPH-BORDER-MIXIN))
   (with-slots (x-auto-tick x-dtick y-auto-tick y-dtick) SELF

@@ -41,7 +41,6 @@ advised of the possiblity of such damages.
                 #:frame-manager
                 #:find-frame-manager
                 #:suggest
-                #:expression
                 #:accept)
   (:shadow #:presentation-p
            #:redisplayable-format
@@ -51,8 +50,6 @@ advised of the possiblity of such damages.
            #:insertion-pointer
            #:catching-parser-failures
            #:sheet
-           #:accept-values-choose-from-sequence
-           #:alist-subset
            #:invisible-object
            #:window-under-mouse
            #:change-size
@@ -96,8 +93,6 @@ advised of the possiblity of such damages.
            #:catching-parser-failures
            #:suggest
            #:sheet
-           #:accept-values-choose-from-sequence
-           #:alist-subset
            #:invisible-object
            #:window-under-mouse
            #:change-size
@@ -113,11 +108,8 @@ advised of the possiblity of such damages.
            #:define-presentation-type
            #:with-output-truncation
            #:with-redisplayable-output
-
            #:alist-member
            #:command
-           #:expression
-
            #:status-pane
            #:status-line
            #:set-status-line

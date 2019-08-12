@@ -190,8 +190,6 @@ advised of the possiblity of such damages.
                           #:catching-parser-failures
                           #:suggest
                           #:sheet
-                          #:accept-values-choose-from-sequence
-                          #:alist-subset
                           #:invisible-object
                           #:window-under-mouse
                           #:change-size
