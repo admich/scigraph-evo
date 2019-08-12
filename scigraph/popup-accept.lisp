@@ -100,7 +100,9 @@ advised of the possiblity of such damages.
   ;; Collect up the instance variables and accept new values for them.
   (let ((TITLE (pop-accept-label SELF)))
     (accepting-values (stream :own-window t
-			      :label title)
+                              :label title
+                              :resynchronize-every-pass t
+                              :scroll-bars :both)
       (dolist (var (popup-accept-variables self))
 	(if (slot-boundp self var)
 	    (setf (slot-value self var)
@@ -264,7 +266,9 @@ advised of the possiblity of such damages.
 	  do (setq result
 		   (accepting-values (menu-menu-stream
 				      :own-window own-window
-				      :label title)
+				      :label title
+                      :resynchronize-every-pass t
+                      :scroll-bars :both)
 		     (unless FIRST-TIME?
 		       (popup-accept-forms-string
 			 (menu-menu-stream nil)

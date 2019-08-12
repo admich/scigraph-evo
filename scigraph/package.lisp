@@ -183,7 +183,6 @@ advised of the possiblity of such damages.
                           #:present-to-string
                           #:redisplayable-format
                           #:accept
-                          #:accepting-values
                           #:accept-variable-values
                           #:suggest
                           #:window-under-mouse

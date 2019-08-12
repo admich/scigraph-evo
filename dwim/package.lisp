@@ -44,7 +44,6 @@ advised of the possiblity of such damages.
                 #:accept)
   (:shadow #:presentation-p
            #:redisplayable-format
-           #:accepting-values
            #:accept-variable-values
            #:window-under-mouse
            #:change-size
@@ -76,7 +75,6 @@ advised of the possiblity of such damages.
            #:presentation-p
            #:present-to-string
            #:redisplayable-format
-           #:accepting-values
            #:accept-variable-values
            #:suggest
            #:window-under-mouse

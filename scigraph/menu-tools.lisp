@@ -71,23 +71,24 @@ advised of the possiblity of such damages.
 					  :value item)
 				  (list (stringify (car item))
 					:value (cadr item))))
-			    item-list))))
-      (if (eq :abort
-	      (accepting-values (stream :own-window own-window
-					:label "Choose")
-				(format stream label)
-				(terpri stream)
-				(setq highlighted-values
-				  (accept
-				   ptype
-				   :default highlighted-values
-				   :view
-				   '(check-box-view :orientation :vertical)
-				   :prompt "Choose Several"
-				   :stream stream))
-				(terpri stream)))
-	  (values nil t)
-	(nreverse highlighted-values)))))
+                    item-list))))
+      (restart-case (accepting-values (stream :own-window own-window
+                                              :resynchronize-every-pass t
+                                              :scroll-bars :both
+                                              :label "Choose")
+                      (format stream label)
+                      (terpri stream)
+                      (setq highlighted-values
+                            (accept
+                             ptype
+                             :default highlighted-values
+                             :view
+                             '(check-box-view :orientation :vertical)
+                             :prompt "Choose Several"
+                             :stream stream))
+                      (terpri stream))
+        (abort () (return-from several-choose (values nil t))))
+      (nreverse highlighted-values))))
 
 (defun test-chooser ()
   (several-choose '(apples oranges pears)))
@@ -120,7 +121,9 @@ advised of the possiblity of such damages.
   "Edit text in the given region of the window."
   (declare (ignore left top right bottom))
   (let ((new-string string))
-      (accepting-values (window :own-window t)
+    (accepting-values (window :own-window t
+                              :resynchronize-every-pass t
+                              :scroll-bars :both)
         (setf new-string (accept 'string :stream window :prompt "Input a string" :default string :view '(text-editor-view :ncolumns 80 :nlines 10))))
       new-string))
 

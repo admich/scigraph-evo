@@ -62,29 +62,6 @@ advised of the possiblity of such damages.
 	       ,@body)
 	      (progn ,@body)))
 
-(defmacro accepting-values ((stream &key own-window label (abort-value :ABORT)
-				    (exit-boxes ''((:exit "   OK   ")
-						   (:abort "   Cancel   "))))
-			    &body body)
-  ;; add :exit-boxes arg
-  `(if (eq :abort
-        (restart-case
-            (clim:accepting-values
-                (,stream :own-window ,own-window
-                         :label ,label
-                         :exit-boxes ,exit-boxes
-                         :resynchronize-every-pass t
-                         ;; get these things to come up
-                         ;; in some nonrandom location
-                         :x-position 200
-                         :y-position 200
-                         :scroll-bars :both)
-              ,@body)
-          (abort () :abort)))
-    ;; If you quit using a keyboard accelerator, clim leaves the keystroke
-    ;; in the input buffer (clim bug).
-    ,abort-value t))
-
 (defmacro for-each-frame ((symbol) &body body)
   "Iteratively bind SYMBOL to all enabled frames."
   `(clim:map-over-ports
