@@ -275,8 +275,8 @@ advised of the possiblity of such damages.
       SELF
     (popup-accept-forms (MENU-STREAM)
 	(pa-string "Labels and Borders")
-	(pa-slot title       	  "  Title"          'string-or-none)
-	(pa-slot x-label     	  "  X axis label"   'string-or-none)
+	(pa-slot title       	  "  Title"          '(null-or-type string))
+	(pa-slot x-label     	  "  X axis label"   '(null-or-type string))
 	(pa-slot x-digits    	  "  X digits"       'number-or-none)
 	(pa-slot x-tick-numbering "  X Tick numbering"
 		 '(alist-member :alist
@@ -288,7 +288,7 @@ advised of the possiblity of such damages.
 	  (pa-slot x-dtick        "    X Tick spacing" 'number))
 	(unless (or x-auto-tick x-dtick)
 	  (pa-warn "For X axis: Choose Auto tick or provide a tick spacing"))
-	(pa-slot y-label	  "  Y axis label"   'string-or-none)
+	(pa-slot y-label	  "  Y axis label"   '(null-or-type string))
 	(pa-slot y-digits	  "  Y digits"       'number-or-none)
 	(pa-slot y-tick-numbering "  Y Tick numbering"
 		 '(alist-member :alist

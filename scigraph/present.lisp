@@ -334,19 +334,6 @@ or at top left."
 ;;; probably because AND and OR are missing.  Here we kludge up 
 ;;; a solution until CLIM gets better.
 ;;; CLIM IS BETTER NOW (CLIM 2.0.BETA).  LETS GET RID OF THIS.  JPM.
-(define-presentation-type string-or-none ()
-  :description "a string or None"
-  :printer ((object stream)
-	    (if (or (not object) (equal object ""))
-		(write-string "None" stream)
-	      (present object 'string :stream stream)))
-  :parser ((stream)
-	   (let ((string (accept 'string :stream stream :prompt nil :default nil)))
-	     (setq string (string-trim '(#\space) string))
-	     (if (or (string= string "") 
-		     (string-equal string "None"))
-		 (values nil 'string-or-none)
-	       (values string 'string-or-none)))))
 
 (define-presentation-type number-or-none ()
   :description "a number or None"
