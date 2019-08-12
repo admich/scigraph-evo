@@ -133,13 +133,12 @@ advised of the possiblity of such damages.
 ;;; Elsewhere there are better translators specific to those ptypes.  This
 ;;; translator remains as a tool that others might want to use.
 (define-presentation-to-command-translator com-pop-edit
-   (t :command-name com-pop-edit
-      :command-table :graph
+    (t com-pop-edit :graph
       :tester ((object) (popup-acceptable object))
       :documentation "Edit (Pop Up Window)"
       :menu t
       :gesture :edit)
-   (object &key presentation window)
+   (object presentation window)
   (list object window presentation))
 
 (add-command-to-command-table 'com-pop-edit 'clim::accept-values :name t :errorp nil)

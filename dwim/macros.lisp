@@ -40,43 +40,6 @@ advised of the possiblity of such damages.
 		,@body)
 	  ,@elements))
 
-(defun canonicalize-argument-list (list)
-  (remove '&key list))
-
-(defun canonicalize-command-table (command-table)
-  (if (symbolp command-table)
-      command-table
-      (eval command-table)))
-
-(defun canonicalize-documentation (documentation)
-  documentation)
-
-
-(defmacro define-presentation-to-command-translator
-    (name
-     (presentation-type
-      &key (menu t) gesture documentation (pointer-documentation documentation)
-	   command-name tester command-table)
-     arguments
-     &body body)
-  (setq documentation (canonicalize-documentation documentation)
-	command-table (canonicalize-command-table command-table))
-  `(clim:define-presentation-to-command-translator
-    ,name
-    (,presentation-type ,command-name ,command-table
-     :tester ,(if tester
-                  (cons (canonicalize-argument-list
-                         (car tester))
-                        (cdr tester)))
-     :gesture ,gesture
-     :menu ,menu
-     :pointer-documentation ,pointer-documentation
-     :documentation ,documentation)
-    ;; Don't know who's right, but my reading of the spec suggests
-    ;; that &key shouldn't be in the argument list. -- moore
-    ,(canonicalize-argument-list arguments)
-    ,@body))
-
 (defmacro with-output-truncation ((stream) &body body)
   `(clim:with-end-of-line-action
     (,stream :allow)

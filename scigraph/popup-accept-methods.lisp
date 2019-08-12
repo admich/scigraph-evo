@@ -71,12 +71,11 @@ advised of the possiblity of such damages.
   (popup-accept-from-presentation graph WINDOW PRESENTATION))
 
 (define-presentation-to-command-translator com-pop-edit-graph
-  (graph :command-name com-pop-edit-graph
-	 :command-table :graph
+    (graph com-pop-edit-graph :graph
 	 :documentation "Edit Graph Borders & Labels..."
 	 :menu t
 	 :gesture :select) 
-  (object &key presentation window)
+  (object presentation window)
   (list object window presentation))
 
 (define-graph-command com-pop-edit-dataset
@@ -85,25 +84,23 @@ advised of the possiblity of such damages.
   (popup-accept-from-presentation dataset WINDOW PRESENTATION))
 
 (define-presentation-to-command-translator com-pop-edit-dataset
-   (graph-data :command-name com-pop-edit-dataset
-	       :command-table :graph
+    (graph-data com-pop-edit-dataset :graph
 	       :documentation "Change Data Symbols..."
 	       :menu t
 	       ;; Genera screws up on mouse sensitivity
 	       ;; unless some translator has a :left gesture.
 	       :gesture :select) 
-   (object &key presentation window)
+   (object presentation window)
   (list object window presentation))
 
 (add-command-to-command-table 'com-pop-edit-dataset 'clim::accept-values :name t :errorp nil)
 
 (define-presentation-to-command-translator com-pop-edit-dataset
-   (graph-data :command-name com-pop-edit-dataset
-	       :command-table clim::accept-values
+    (graph-data com-pop-edit-dataset clim::accept-values
 	       :documentation "Change Data Symbols..."
 	       :menu t
 	       :gesture :select) 
-   (object &key presentation window)
+   (object presentation window)
   (list object window presentation))
 
 

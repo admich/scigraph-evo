@@ -200,10 +200,9 @@ or at top left."
   (zoom-in graph window))
 
 (define-presentation-to-command-translator zoom-in
-  (graph :command-name com-zoom-in 
-	 :command-table :graph
+  (graph com-zoom-in :graph
 	 :gesture nil :documentation "Zoom In...")
-  (object &key window)
+  (object window)
   (list object window))
 
 (define-graph-command com-zoom-out ((graph 'graph) (WINDOW 'sheet))
@@ -211,11 +210,10 @@ or at top left."
   (zoom-out graph WINDOW))
 
 (define-presentation-to-command-translator zoom-out
-  (graph :command-name com-zoom-out 
-	 :command-table :graph
+  (graph com-zoom-out :graph
 	 :tester ((object) (and (graph-p object) (zoom-stack object)))
 	 :gesture nil :documentation "Zoom Out")
-  (object &key window)
+  (object window)
   (list object window))
 
 (define-graph-command com-slider-crosshairs ((graph 'graph) (WINDOW 'sheet))
@@ -226,10 +224,9 @@ or at top left."
       (and x y (describe-point graph x y)))))
 
 (define-presentation-to-command-translator slider-crosshairs
-  (graph :command-name com-slider-crosshairs
-	 :command-table :graph
+  (graph com-slider-crosshairs :graph
 	 :gesture nil :documentation "Crosshairs")
-  (object &key window)
+  (object window)
   (list object window))
 
 (define-graph-command com-redraw-graph ((graph 'graph) (window 'sheet))
@@ -237,10 +234,9 @@ or at top left."
   (refresh graph window))
 
 (define-presentation-to-command-translator com-redraw-graph
-   (graph :command-name com-redraw-graph
-	  :command-table :graph
+   (graph com-redraw-graph :graph
 	  :gesture nil :documentation "Redraw Graph")
-   (object &key window)
+   (object window)
   (list object window))
 
 (define-graph-command com-reveal-datasets ((graph 'graph) (WINDOW 'sheet))
@@ -249,13 +245,12 @@ or at top left."
   (refresh graph window))
 
 (define-presentation-to-command-translator com-reveal-datasets
-  (graph :command-name com-reveal-datasets
-	 :command-table :graph
+    (graph com-reveal-datasets :graph
 	 :gesture nil :documentation "Reveal Hidden Data"
 	 :tester ((object)
 		  (and (graph-p object)
 		       (not (null (hidden-datasets object))))))
-  (object &key window)
+  (object window)
   (list object window))
 
 (define-graph-command com-remove-dataset ((dataset 'graph-data) (window 'sheet) (presentation 't))
@@ -266,15 +261,14 @@ or at top left."
       (refresh g window))))
 
 (define-presentation-to-command-translator com-remove-dataset
-   (graph-data :command-name com-remove-dataset
-	       :command-table :graph
+   (graph-data com-remove-dataset :graph
 	       :gesture nil :documentation "Hide Data"
-	       :Tester ((object &key presentation)
+	       :tester ((object presentation)
 			(declare (ignore object))
 			(or (graph-under-presentation presentation)
 			    (graph-under-annotation-under-presentation
 			     presentation))))
-   (object &key window presentation)
+   (object window presentation)
   (list object window presentation))
 
 

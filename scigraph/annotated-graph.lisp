@@ -57,11 +57,10 @@ advised of the possiblity of such damages.
 
 (define-presentation-to-command-translator
   com-move-annotation
-  (annotation :command-name com-move-object
-	      :command-table :graph
+    (annotation com-move-object :graph
 	      :gesture :select
 	      :menu t :documentation "Move")
-  (object &key WINDOW)
+  (object WINDOW)
   `(,object ,WINDOW))
 
 (define-graph-command com-delete-annotation ((object 'annotation) (window 'sheet))
@@ -69,10 +68,9 @@ advised of the possiblity of such damages.
   (kill object window))
 
 (define-presentation-to-command-translator com-delete-annotation
-   (annotation :command-name com-delete-annotation
-	       :command-table :graph
+    (annotation com-delete-annotation :graph
 	       :gesture nil :documentation "Delete")
-   (object &key window)
+   (object window)
   (list object window))
 
 (define-graph-command com-change-annotation-style ((object 'annotation) (window 'sheet))
@@ -84,10 +82,9 @@ advised of the possiblity of such damages.
        (display object window))))
 
 (define-presentation-to-command-translator com-change-annotation-style 
-   (annotation :command-name com-change-annotation-style
-	       :command-table :graph
+    (annotation com-change-annotation-style :graph
 	       :gesture nil :documentation "Change Text Style")
-   (object &key window)
+   (object window)
   (list object window))
 
 (define-graph-command com-edit-annotation ((object 'annotation) (window 'sheet))
@@ -95,12 +92,11 @@ advised of the possiblity of such damages.
    (edit object window))
 
 (define-presentation-to-command-translator com-edit-annotation
-   (annotation :command-name com-edit-annotation 
+    (annotation com-edit-annotation :graph
 	       :gesture nil
-	       :command-table :graph
 	       :tester ((object) (editable object))
 	       :documentation "Edit Annotation Text")
-   (object &key WINDOW)
+   (object WINDOW)
   (list object window))
 
 (defclass ANNOTATED-GRAPH-MIXIN (essential-graph-margin-mixin) 
@@ -126,12 +122,11 @@ advised of the possiblity of such damages.
 
 (define-presentation-to-command-translator
   com-annotations-menu
-  (graph :command-name com-annotations-menu
-	 :command-table :graph
+  (graph com-annotations-menu :graph
 	 :documentation "Add Free Text..."
 	 :gesture nil 
 	 :tester ((object) (annotated-graph-p object)))
-  (object &key WINDOW)
+  (object WINDOW)
   (list object window))
 
 (define-graph-command com-graph-identify-point ((graph 'graph) (window 'sheet))
@@ -148,12 +143,11 @@ advised of the possiblity of such damages.
 
 (define-presentation-to-command-translator
   com-graph-identify-point
-  (graph :command-name com-graph-identify-point
-	 :command-table :graph
+    (graph com-graph-identify-point :graph
 	 :documentation "Identify Data Point..."
 	 :gesture nil 
 	 :tester ((object) (annotated-graph-p object)))
-  (object &key WINDOW)
+  (object WINDOW)
   (list object window))
 
 (define-graph-command com-graph-identify-region ((graph 'graph) (window 'sheet))
@@ -171,12 +165,11 @@ advised of the possiblity of such damages.
 
 (define-presentation-to-command-translator
   com-graph-identify-region
-  (graph :command-name com-graph-identify-region
-	 :command-table :graph
+    (graph com-graph-identify-region :graph
 	 :documentation "Identify Data Region..."
 	 :gesture nil 
 	 :tester ((object) (annotated-graph-p object)))
-  (object &key WINDOW)
+  (object WINDOW)
   (list object window))
 
 (defmethod rescale-annotation progn ((self annotated-graph-mixin))

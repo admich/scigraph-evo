@@ -197,7 +197,6 @@ advised of the possiblity of such damages.
                           #:stream-viewport-size
                           #:printing-random-object
                           #:with-stack-list
-                          #:define-presentation-to-command-translator
                           #:with-output-truncation
                           #:with-redisplayable-output
                           #:command

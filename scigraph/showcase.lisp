@@ -25,12 +25,11 @@
 
 (define-presentation-to-command-translator
     com-change-xy-axis
-    (graph :command-name com-change-xy-axis
-			  :command-table :graph
+    (graph com-change-xy-axis :graph
 			  :gesture nil
               :tester ((object) (typep object 'graph-with-reselectable-axes))
 			  :documentation "Change axis")
-    (object &key window)
+    (object  window)
   (list object window))
 
 (define-showcase-command com-change-xy-axis ((graph 'graph-with-reselectable-axes) (stream 'sheet))

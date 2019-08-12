@@ -58,7 +58,6 @@ advised of the possiblity of such damages.
 
            #:printing-random-object
            #:with-stack-list
-           #:define-presentation-to-command-translator
            #:with-output-truncation
            #:with-redisplayable-output
            #:command
@@ -92,11 +91,9 @@ advised of the possiblity of such damages.
            #:stream-character-width
            #:stream-viewport
            #:stream-viewport-size
-           
            #:stream-set-pointer-position*
            #:printing-random-object
            #:with-stack-list
-           #:define-presentation-to-command-translator
            #:with-output-truncation
            #:with-redisplayable-output
            #:command

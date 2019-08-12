@@ -329,13 +329,12 @@ advised of the possiblity of such damages.
 
 (define-presentation-to-command-translator
   com-move-annotation-point
-  (moving-point :command-name com-move-object
-		:command-table :graph
+  (moving-point  com-move-object :graph
 		;; Annotations are covered by a different translator.
 		:tester ((object) 
-			 (not (typep object 'basic-annotation))) ; NLC
+                 (not (typep object 'basic-annotation))) ; NLC
 		:gesture :select :menu t :documentation "Move")
-  (object &key WINDOW)
+  (object WINDOW)
   `(,object ,WINDOW))
 
 (defclass annotation-link-mixin ()
@@ -574,13 +573,12 @@ advised of the possiblity of such damages.
 
 (define-presentation-to-command-translator
     com-move-polygon
-    (polygon-presentation :command-name com-move-object
-			  :command-table :graph
+    (polygon-presentation com-move-object :graph
 			  :gesture :select 
 			  :menu t 
 			  :tester ((object) (moveable-polygon-p object))
 			  :documentation "Move")
-  (object &key WINDOW X Y)
+  (object WINDOW X Y)
   (progn (cache-moving-corner object window x y)
 	 `(,object ,WINDOW)))
 
@@ -782,14 +780,13 @@ advised of the possiblity of such damages.
 ;;; Make individual datums mouse-sensitive.  This is a little bit tricky,
 ;;; since datums can literally be any lisp object.  
 (define-presentation-to-command-translator com-identify
-  (datum :command-name com-identify
-	      :command-table :graph
+  (datum  com-identify :graph
 	      :gesture :select
 	      :menu t
 	      :documentation "Identify Data Point"
-	      :tester ((object &key presentation)
+	      :tester ((object presentation)
                    (dataset-sensitive-p presentation)))
-  (object &key presentation window)
+  (object presentation window)
   (list (dataset-under-presentation presentation) 
 	(graph-under-presentation presentation)
 	object window))
