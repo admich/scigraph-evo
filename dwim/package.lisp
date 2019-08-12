@@ -46,9 +46,6 @@ advised of the possiblity of such damages.
            #:redisplayable-format
            #:accepting-values
            #:accept-variable-values
-           #:input-position
-           #:insertion-pointer
-           #:catching-parser-failures
            #:window-under-mouse
            #:change-size
            #:stream-line-height
@@ -81,9 +78,6 @@ advised of the possiblity of such damages.
            #:redisplayable-format
            #:accepting-values
            #:accept-variable-values
-           #:input-position
-           #:insertion-pointer
-           #:catching-parser-failures
            #:suggest
            #:window-under-mouse
            #:change-size

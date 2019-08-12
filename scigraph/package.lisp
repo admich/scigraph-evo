@@ -185,9 +185,6 @@ advised of the possiblity of such damages.
                           #:accept
                           #:accepting-values
                           #:accept-variable-values
-                          #:input-position
-                          #:insertion-pointer
-                          #:catching-parser-failures
                           #:suggest
                           #:window-under-mouse
                           #:change-size
