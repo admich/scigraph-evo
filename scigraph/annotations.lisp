@@ -769,11 +769,7 @@ advised of the possiblity of such damages.
 	 (annotate-data-point dataset stream graph datum))
 	(t (beep))))
 
-(defmethod datum-presentation-p ((object t) presentation)
-  ;; Check that it's a part of a graph and not part of the legend.
-  (and (eql (presentation-type presentation) 'expression)
-       (graph-under-presentation presentation)
-       (not (graph-under-annotation-under-presentation presentation))))
+(defclass datum () ())
 
 (defun dataset-sensitive-p (presentation)
   (let ((dataset (dataset-under-presentation presentation)))
@@ -782,14 +778,13 @@ advised of the possiblity of such damages.
 ;;; Make individual datums mouse-sensitive.  This is a little bit tricky,
 ;;; since datums can literally be any lisp object.  
 (define-presentation-to-command-translator com-identify
-  (expression :command-name com-identify
+  (datum :command-name com-identify
 	      :command-table :graph
 	      :gesture :select
 	      :menu t
 	      :documentation "Identify Data Point"
 	      :tester ((object &key presentation)
-		       (and (datum-presentation-p object presentation)
-			    (dataset-sensitive-p presentation))))
+                   (dataset-sensitive-p presentation)))
   (object &key presentation window)
   (list (dataset-under-presentation presentation) 
 	(graph-under-presentation presentation)

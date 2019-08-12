@@ -11,10 +11,8 @@
                       annotated-graph)
   ())
 
-(defclass pie-graph-datum ()
+(defclass pie-graph-datum (datum)
   ((value :initarg :value :accessor datum-value)))
-
-(clim:define-presentation-type pie-graph-datum ())
 
 (defmethod datum-presentation-type ((self presentable-data-mixin) (datum pie-graph-datum))
   (declare (ignore self datum))
@@ -93,39 +91,8 @@
   ;; screen, not what seems close in x,y space.
   (values 0 0 (make-instance 'pie-graph-datum :value (data dataset))))
 
-(define-presentation-to-command-translator com-identify-2
-  (pie-graph-datum :command-name com-identify
-	      :command-table :graph
-	      :gesture :select
-	      :menu t
-	      :documentation "Identify Data Point"
-	      :tester ((object &key presentation)
-                   t
-		       ;; (and (datum-presentation-p object presentation)
-               ;;      (dataset-sensitive-p presentation))
-                   )
-          )
-    (object &key presentation window)
-  (list (dataset-under-presentation presentation) 
-	(graph-under-presentation presentation)
-	object window))
-
 #|
 ----------------------------------------------------------------------
-eliinare??
-(defmethod datum-presentation-p ((object t) presentation)
-  ;; Check that it's a part of a graph and not part of the legend.
-  (log:error "b")
-  (and (eql (presentation-type presentation) 'expression)
-       (graph-under-presentation presentation)
-       (not (graph-under-annotation-under-presentation presentation)))
-  t)
-
-(defun dataset-sensitive-p (presentation)
-  (let ((dataset (dataset-under-presentation presentation)))
-      (log:error "a" (and dataset (present-self-p dataset)))
-    (and dataset (present-self-p dataset))))
-
 
 ;;; Clim 0.9 seems to be missing a bunch of presentation types,
 ;;; probably because AND and OR are missing.  Here we kludge up 

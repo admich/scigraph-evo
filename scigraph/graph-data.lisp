@@ -889,7 +889,7 @@ way.  The graph takes the union of the limits returned.
 	(call-next-method SELF STREAM graph left bottom width height)))))
 
 (defmethod datum-presentation-type ((self presentable-data-mixin) (datum t))
-  'expression)
+  'datum)
 
 (defmethod datum-presentation ((self presentable-data-mixin) datum)
   ;; Just in case it isn't the datum itself.
