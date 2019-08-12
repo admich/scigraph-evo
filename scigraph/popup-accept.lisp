@@ -125,7 +125,7 @@ advised of the possiblity of such damages.
   (values self (eq (popup-accept self stream) :abort)))
 
 (define-command (com-pop-edit :command-table :global)
-    ((object 'invisible-object) (window 'sheet) (presentation 'invisible-object))
+    ((object 'moving-object) (window 'sheet) (presentation 'presentation))
    (popup-accept-from-presentation object WINDOW PRESENTATION))
 
 ;;; Scigraph no longer uses this translator to edit graphs and graph-data.

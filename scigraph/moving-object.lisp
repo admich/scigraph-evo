@@ -108,7 +108,7 @@ advised of the possiblity of such damages.
     (with-rs-coordinates ((graph self) stream) (display self STREAM))
     ))
 
-(define-graph-command com-move-object ((object 'invisible-object) (window 'sheet))
+(define-graph-command com-move-object ((object 't) (window 'sheet))
   "Reposition an object, such as an annotation."
   (move object WINDOW))
 

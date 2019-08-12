@@ -762,7 +762,7 @@ advised of the possiblity of such damages.
 (define-graph-command com-identify
     ((dataset 'graph-data) 
      (graph 'graph)
-     (datum 'invisible-object)
+     (datum 'datum)
      (stream 'sheet))
   "Add an annotation describing a data point."
   (cond ((and dataset graph datum stream)

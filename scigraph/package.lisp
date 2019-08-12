@@ -189,7 +189,6 @@ advised of the possiblity of such damages.
                           #:insertion-pointer
                           #:catching-parser-failures
                           #:suggest
-                          #:invisible-object
                           #:window-under-mouse
                           #:change-size
                           #:stream-line-height

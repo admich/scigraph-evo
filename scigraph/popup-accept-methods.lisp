@@ -66,7 +66,7 @@ advised of the possiblity of such damages.
 (defmethod pop-accept-label ((self basic-graph)) (name-string self))
 
 (define-graph-command com-pop-edit-graph
-    ((graph 'graph) (window 'sheet) (presentation 'invisible-object))
+    ((graph 'graph) (window 'sheet) (presentation 'presentation))
   "Edit the attributes of a graph in a dialog box."
   (popup-accept-from-presentation graph WINDOW PRESENTATION))
 
@@ -80,7 +80,7 @@ advised of the possiblity of such damages.
   (list object window presentation))
 
 (define-graph-command com-pop-edit-dataset
-    ((dataset 'graph-data) (window 'sheet) (presentation 'invisible-object))
+    ((dataset 'graph-data) (window 'sheet) (presentation 'presentation))
   "Edit the attributes of some graph data in a dialog box."
   (popup-accept-from-presentation dataset WINDOW PRESENTATION))
 

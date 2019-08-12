@@ -143,11 +143,3 @@ advised of the possiblity of such damages.
   (clim:with-output-recording-options (stream :draw nil :record nil)
     (accept 'string :stream stream :prompt nil :default nil)))
 
-;;; A hack so the user doesnt have to see some ugly commands get echoed.
-;;; Also seems like a useful way to read a password.
-(define-presentation-type invisible-object ()
-  :parser ((stream)
-	   (values (readline-no-echo stream) 'invisible-object))
-  :printer ((object stream)
-            (declare (ignore object))
-	    (write-string "*" stream)))
