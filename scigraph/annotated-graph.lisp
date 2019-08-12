@@ -40,20 +40,20 @@ advised of the possiblity of such damages.
 (defconstant *return* #.(elt (format nil "~%") 0))
 
 (define-presentation-type annotation ()
-  ;; This has to be in a file separate from (defclass annotation ...) because
-  ;; otherwise clim 1.0 complains.  jpm.
-  :description "an annotation"
-  :printer ((object stream)
-	    (flet ((shorten-string
+  :description "an annotation")
+
+(define-presentation-method present (object (type annotation) stream (view textual-view) &key)
+  (flet ((shorten-string
 		     (string &optional (longest 15))
 		     (let ((str (substitute #\space *return* string)))
 		       (if (> (length str) longest)
 			   (format nil "~A..." (subseq str 0 (1- longest)))
 			   str))))
 	      (write-string (shorten-string (annotation-text object)) stream)))
-  :parser ((stream)
-	   (read-char stream)
-	   (error "You must select an annotation with the mouse.")))
+
+(define-presentation-method accept ((type annotation) stream (view textual-view) &key)
+  (read-char stream)
+  (error "You must select an annotation with the mouse."))
 
 (define-presentation-to-command-translator
   com-move-annotation

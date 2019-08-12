@@ -28,12 +28,14 @@ advised of the possiblity of such damages.
 (in-package :graph)
 
 (define-presentation-type graph ()
-  :description "a graph" 
-  :printer ((object stream)
-	    (format stream "~A" (name object)))
-  :parser ((stream)
-	   (read-char stream)
-	   (error "You must select a graph with the mouse.")))
+  :description "a graph")
+
+(define-presentation-method present (object (type graph) stream (view textual-view) &key)
+  (format stream "~A" (name object)))
+
+(define-presentation-method accept ((type graph) stream (view textual-view) &key)
+  (read-char stream)
+  (error "You must select a graph with the mouse."))
 
 (define-presentation-method highlight-presentation ((type graph) record stream state)
   (declare (ignore type))
@@ -43,12 +45,15 @@ advised of the possiblity of such damages.
                      :ink +flipping-ink+ :filled nil)))
 
 (define-presentation-type graph-data ()
-  :description "a graph dataset" 
-  :printer ((object stream)
-	    (format stream "~A" (name object)))
-  :parser ((stream)
-	   (read-char stream)
-	   (error "You must select a graph dataset with the mouse.")))
+  :description "a graph dataset")
+
+(define-presentation-method present (object (type graph-data) stream (view textual-view) &key)
+  (format stream "~A" (name object)))
+
+(define-presentation-method accept ((type graph-data) stream (view textual-view) &key)
+  (read-char stream)
+  (error "You must select a graph dataset with the mouse."))
+
 
 (defmethod display-graph ((graph basic-graph)
                           &key

@@ -318,12 +318,14 @@ advised of the possiblity of such damages.
         (draw-circle* stream r s radius :ink ink :filled nil)))))
 
 (define-presentation-type moving-point ()
-  :description "a moving point"
-  :printer ((object stream)
-	    (format stream "~S" object))
-  :parser ((stream)
-	   (read-char stream)
-	   (error "You must select an annotation with the mouse.")))
+  :description "a moving point")
+
+(define-presentation-method present (object (type moving-object) stream (view textual-view) &key)
+  (format stream "~S" object))
+
+(define-presentation-method accept ((type moving-object) stream (view textual-view) &key)
+  (read-char stream)
+  (error "You must select an annotation with the mouse."))
 
 (define-presentation-to-command-translator
   com-move-annotation-point
@@ -561,12 +563,14 @@ advised of the possiblity of such damages.
   (:documentation "Couple a polygon to an annotation")) 
 
 (define-presentation-type polygon-presentation ()
-  :description "a polygon"
-  :printer ((object stream)
-	    (format stream "~S" object))
-  :parser ((stream)
-	   (read-char stream)
-	   (error "You must select a polygon with the mouse.")))
+  :description "a polygon")
+
+(define-presentation-method present (object (type polygon-presentation) stream (view textual-view) &key)
+  (format stream "~S" object))
+
+(define-presentation-method accept ((type polygon-presentation) stream (view textual-view) &key)
+  (read-char stream)
+  (error "You must select a polygon with the mouse."))
 
 (define-presentation-to-command-translator
     com-move-polygon

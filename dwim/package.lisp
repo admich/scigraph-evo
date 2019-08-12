@@ -59,7 +59,6 @@ advised of the possiblity of such damages.
            #:printing-random-object
            #:with-stack-list
            #:define-presentation-to-command-translator
-           #:define-presentation-type
            #:with-output-truncation
            #:with-redisplayable-output
            #:command
@@ -98,7 +97,6 @@ advised of the possiblity of such damages.
            #:printing-random-object
            #:with-stack-list
            #:define-presentation-to-command-translator
-           #:define-presentation-type
            #:with-output-truncation
            #:with-redisplayable-output
            #:command
