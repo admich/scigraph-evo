@@ -118,17 +118,6 @@ advised of the possiblity of such damages.
 	     (throw ',normal ,form)))
 	 ,@failure-actions))))
 
-(defun input-not-of-required-type (stream object type)
-  "Use this to signal a parser failure and cause backtracking."
-  (declare (ignore stream))
-  ;; Used by faes expression editor.  Don't use the one from clim or dw,
-  ;; it's so fancy that it outsmarts itself.
-  (when *%%ready-to-catch%%*
-      (throw 'catch-parser-failures t))
-  (if (eq object :failure)
-      (clim:simple-parse-error "The input read was not of the required type.")
-      (clim:input-not-of-required-type object type)))
-
 ;;;
 ;;; Presentation types
 ;;;

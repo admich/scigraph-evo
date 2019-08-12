@@ -92,19 +92,6 @@
   (values 0 0 (make-instance 'pie-graph-datum :value (data dataset))))
 
 #|
-----------------------------------------------------------------------
-(defun input-not-of-required-type (stream object type)
-  "Use this to signal a parser failure and cause backtracking."
-  (declare (ignore stream))
-  ;; Used by faes expression editor.  Don't use the one from clim or dw,
-  ;; it's so fancy that it outsmarts itself.
-  (when *%%ready-to-catch%%*
-      (throw 'catch-parser-failures t))
-  (if (eq object :failure)
-      (clim:simple-parse-error "The input read was not of the required type.")
-      (clim:input-not-of-required-type object type)))
-
-------------------------------------------------------------------------
 (let ((gr (make-instance 'pie-graph
                          :datasets (list
                                     (make-instance 'graph-data

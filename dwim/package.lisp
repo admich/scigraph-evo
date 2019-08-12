@@ -49,7 +49,6 @@ advised of the possiblity of such damages.
            #:accept-variable-values
            #:input-position
            #:insertion-pointer
-           #:input-not-of-required-type
            #:catching-parser-failures
            #:sheet
            #:accept-values-choose-from-sequence
@@ -94,7 +93,6 @@ advised of the possiblity of such damages.
            #:accept-variable-values
            #:input-position
            #:insertion-pointer
-           #:input-not-of-required-type
            #:catching-parser-failures
            #:suggest
            #:sheet
