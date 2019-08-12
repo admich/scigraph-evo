@@ -203,7 +203,6 @@ advised of the possiblity of such damages.
                           #:define-presentation-type
                           #:with-output-truncation
                           #:with-redisplayable-output
-                          #:alist-member
                           #:command
                           #:status-pane
                           #:status-line

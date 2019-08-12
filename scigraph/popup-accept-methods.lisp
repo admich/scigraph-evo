@@ -158,7 +158,7 @@ advised of the possiblity of such damages.
   (declare (ignore GRAPH-WINDOW))
   (popup-accept-forms (MENU-STREAM)
     (pa-string "Drawing style")
-    (pa-slot pattern        "  Pattern" `(alist-member :alist ,*SCI-GRAPH-AVAILABLE-STIPPLES*))
+    (pa-slot pattern        "  Pattern" `(member-alist ,*SCI-GRAPH-AVAILABLE-STIPPLES*))
     (pa-slot THICKNESS      "  Line Thickness" 'number)
     ))
 
@@ -279,7 +279,7 @@ advised of the possiblity of such damages.
 	(pa-slot x-label     	  "  X axis label"   '(null-or-type string))
 	(pa-slot x-digits    	  "  X digits"       '(null-or-type number))
 	(pa-slot x-tick-numbering "  X Tick numbering"
-		 '(alist-member :alist
+             '(member-alist
 				(("None" :value nil)
 				 ("First & Last" :value :minimal)
 				 ("Each" :value :each))))
@@ -291,7 +291,7 @@ advised of the possiblity of such damages.
 	(pa-slot y-label	  "  Y axis label"   '(null-or-type string))
 	(pa-slot y-digits	  "  Y digits"       '(null-or-type number))
 	(pa-slot y-tick-numbering "  Y Tick numbering"
-		 '(alist-member :alist
+             '(member-alist
 				(("None" :value nil)
 				 ("First & Last" :value :minimal)
 				 ("Each" :value :each))))
@@ -351,7 +351,7 @@ advised of the possiblity of such damages.
 				   MENU-STREAM GRAPH-WINDOW)
   (declare (ignore GRAPH-WINDOW))
   (popup-accept-forms (MENU-STREAM)
-    (pa-slot auto-scale "Auto Scaling?" '(alist-member :alist
+    (pa-slot auto-scale "Auto Scaling?" '(member-alist
 						 (("X" :value :x)
 						  ("Y" :value :y)
 						  ("Both" :value :both)

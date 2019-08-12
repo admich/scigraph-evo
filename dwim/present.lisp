@@ -132,9 +132,6 @@ advised of the possiblity of such damages.
                (format stream "~A" window)))
    :description "a window")
 
-(clim:define-presentation-type-abbreviation alist-member (&key alist (test 'eql))
-  `(clim:member-alist ,alist :test ,test))
-
 (defun menu-execute-no-side-effects (item)
   (cond ((atom item) item)
 	((atom (cdr item)) (cdr item))
