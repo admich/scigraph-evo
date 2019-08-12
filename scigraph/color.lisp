@@ -92,7 +92,7 @@ advised of the possiblity of such damages.
 	  (setq left right right (+ right increment))
 	  (incf intensity quantum))))))
 
-(clim:define-presentation-type-abbreviation color-presentation ()
+(define-presentation-type-abbreviation color-presentation ()
   ;; Can't simply call this 'color' because that already names a class.
   `((member ,@*colors*)
     :name-key name

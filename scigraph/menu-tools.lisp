@@ -45,7 +45,7 @@ advised of the possiblity of such damages.
 ;;; These things are needed mainly for annotations, but they are kept in a separate
 ;;; file to minimize the clutter in the annotations code.
 
-(clim:define-presentation-type-abbreviation button-subset (&key alist (test 'equal))
+(define-presentation-type-abbreviation button-subset (&key alist (test 'equal))
   `(subset-alist ,alist :test ,test))
 
 (defun SEVERAL-CHOOSE (ITEM-LIST
