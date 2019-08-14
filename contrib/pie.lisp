@@ -4,7 +4,10 @@
 
 (export '(pie-graph pie-graph-datum))
 
-(defclass pie-graph-mixin () ()
+(defclass pie-graph-mixin ()
+  ((total-value :initarg :total :accessor total-value)
+   (radius :initarg :radius :accessor radius)
+   (pie-datums :initarg :datums :initform nil :accessor pie-datums))
   (:default-initargs :visible-borders '() :x-min -2 :x-max 2 :y-min -2 :y-max 2 :auto-scale nil))
 
 (defclass pie-graph (pie-graph-mixin
@@ -12,7 +15,9 @@
   ())
 
 (defclass pie-graph-datum (datum)
-  ((value :initarg :value :accessor datum-value)))
+  ((value :initarg :value :accessor datum-value)
+   (start-angle :initarg :start-angle :reader start-angle)
+   (end-angle :initarg :end-angle :reader end-angle)))
 
 (defmethod datum-presentation-type ((self presentable-data-mixin) (datum pie-graph-datum))
   (declare (ignore self datum))
@@ -52,25 +57,30 @@
   (let ((last-angle (/ pi 2))
         (total (reduce #'+ (datasets self) :key (lambda (x) (data x))))
         (radius (* (x-scale self) 1)))
-    (declare (special total radius last-angle))
+    (setf (total-value self) total (radius self) radius)
     (dolist (dataset (datasets self))
+      (let* ((value (data dataset))
+             (angle (* 2 pi (/ value total)))
+             (datum (make-instance 'pie-graph-datum :value value
+                                  :start-angle (- last-angle angle) :end-angle last-angle)))
+        (setf (getf (pie-datums self) dataset) datum
+              last-angle (start-angle datum)))
       (display-data dataset stream self))))
 
 (defmethod display-data ((self essential-graph-data-map-mixin)  stream (graph pie-graph-mixin))
   (with-ink (stream (ink self))
-    (let ((displayer (datum-displayer self graph)))
+    (let ((displayer (datum-displayer self graph))
+          (datum (getf (pie-datums graph) self)))
       (declare (compiled-function displayer))
-      (funcall displayer stream nil nil (make-instance 'pie-graph-datum :value (data self))))))
+      (funcall displayer stream nil nil datum))))
 
 (defmethod datum-displayer ((self essential-graph-data-map-mixin) (graph pie-graph-mixin))
   "Returns a function that expects a stream, UV coordinates of next datum,
    and the datum itself."
   #'(lambda (stream u v datum)
       (multiple-value-bind (cx cy) (xy-to-rs graph 0 0)
-        (let ((angle (* 2 pi (/ (datum-value datum) total))))
-          (with-new-output-record (stream 'circular-sector)
-            (draw-circle* stream cx cy radius :filled t :start-angle  (- last-angle angle) :end-angle last-angle))
-          (setf last-angle (- last-angle angle))))))
+        (with-new-output-record (stream 'circular-sector)
+          (draw-circle* stream cx cy (radius graph) :filled t :start-angle  (start-angle datum) :end-angle (end-angle datum))))))
 
 (defmethod default-annotation-position ((graph pie-graph-mixin) &optional (width 20) (height 20))
   "Find a place (RS) on the graph where the annotation won't obscure any data."
