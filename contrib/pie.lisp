@@ -6,9 +6,9 @@
 
 (defclass pie-graph-mixin ()
   ((total-value :initarg :total :accessor total-value)
-   (radius :initarg :radius :accessor radius)
+   (radius :initarg :radius :accessor radius :initform 120)
    (pie-datums :initarg :datums :initform nil :accessor pie-datums))
-  (:default-initargs :visible-borders '() :x-min -2 :x-max 2 :y-min -2 :y-max 2 :auto-scale nil))
+  (:default-initargs :visible-borders '() :x-min -2 :x-max 2 :y-min -2 :y-max 2 :auto-scale nil ))
 
 (defclass pie-graph (pie-graph-mixin
                       annotated-graph)
@@ -55,9 +55,8 @@
 
 (defmethod graph-display-data ((self pie-graph-mixin) STREAM)
   (let ((last-angle (/ pi 2))
-        (total (reduce #'+ (datasets self) :key (lambda (x) (data x))))
-        (radius (* (x-scale self) 1)))
-    (setf (total-value self) total (radius self) radius)
+        (total (reduce #'+ (datasets self) :key (lambda (x) (data x)))))
+    (setf (total-value self) total)
     (dolist (dataset (datasets self))
       (let* ((value (data dataset))
              (angle (* 2 pi (/ value total)))
@@ -97,9 +96,20 @@
 
 (defmethod nearest-datum ((graph pie-graph)  dataset r s)
   "Return the x,y datum nearest the given r,s coordinates."
-  ;; Do this in uv coordinates, because what matters is what looks close on the
-  ;; screen, not what seems close in x,y space.
-  (values 0 0 (make-instance 'pie-graph-datum :value (data dataset))))
+  (let* ((datum (getf (pie-datums graph) dataset))
+         (angle (/ (+ (start-angle datum) (end-angle datum)) 2))
+         (r (* (cos angle) (/ (radius graph) 2)))
+         (s (* (sin angle) (/ (radius graph) 2))))
+    (multiple-value-bind (cr cs) (xy-to-rs graph 0 0)
+      (multiple-value-bind (x y) (rs-to-xy graph (+ cr r) (- cs s))
+        (values x y datum)))))
+
+(defmethod text-for-datum (graph dataset (datum pie-graph-datum))
+  (let* ((total (and graph (total-value graph)))
+         (value  (datum-value datum))
+         (percent (* 100 (/ value total)))
+         (*print-circle* nil))
+    (format nil "~A~%~A~%~A%" (name dataset) value percent)))
 
 #|
 (let ((gr (make-instance 'pie-graph
