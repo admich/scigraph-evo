@@ -109,7 +109,7 @@
          (value  (datum-value datum))
          (percent (* 100 (/ value total)))
          (*print-circle* nil))
-    (format nil "~A~%~A~%~A%" (name dataset) value percent)))
+    (format nil "~A~%~f~%~,1f%" (name dataset) value percent)))
 
 #|
 (let ((gr (make-instance 'pie-graph
