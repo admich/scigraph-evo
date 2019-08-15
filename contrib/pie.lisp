@@ -2,7 +2,7 @@
 
 ;;;; pie chart
 
-(export '(pie-graph pie-graph-datum))
+(export '(pie-graph pie-graph-datum dataset-summary-function))
 
 (defclass pie-graph-mixin ()
   ((total-value :initarg :total :accessor total-value)
@@ -18,6 +18,12 @@
   ((value :initarg :value :accessor datum-value)
    (start-angle :initarg :start-angle :reader start-angle)
    (end-angle :initarg :end-angle :reader end-angle)))
+
+(defgeneric dataset-summary-function (graph dataset)
+  (:documentation "A function that extract from a dataset a single value used by some statistical plot like pie graph or bar graph"))
+
+(defmethod dataset-summary-function (graph dataset)
+  (data dataset))
 
 (defmethod datum-presentation-type ((self presentable-data-mixin) (datum pie-graph-datum))
   (declare (ignore self datum))
@@ -55,10 +61,10 @@
 
 (defmethod graph-display-data ((self pie-graph-mixin) STREAM)
   (let ((last-angle (/ pi 2))
-        (total (reduce #'+ (datasets self) :key (lambda (x) (data x)))))
+        (total (reduce #'+ (datasets self) :key (lambda (x) (dataset-summary-function self x)))))
     (setf (total-value self) total)
     (dolist (dataset (datasets self))
-      (let* ((value (data dataset))
+      (let* ((value (dataset-summary-function self dataset))
              (angle (* 2 pi (/ value total)))
              (datum (make-instance 'pie-graph-datum :value value
                                   :start-angle (- last-angle angle) :end-angle last-angle)))
