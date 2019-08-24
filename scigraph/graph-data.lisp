@@ -398,20 +398,15 @@ PROTOCOL:
     (let* ((thickness (thickness self))
            (line-cap-shape (line-cap-shape self))           
            (bar-width (bar-width self))
-           (default-width (and bar-width
-                               (values (round (* bar-width (x-scale graph))))))
+           (half-width (truncate (or (and bar-width
+                                 (values (round (* bar-width (x-scale graph))))) 10) 2))
            (ink (ink self)))
       #'(lambda (stream x y datum)
           (declare (ignore datum))
-          (let* ((width default-width))
-            (if width
-                (let* ((half (values (truncate width 2)))
-                       (x- (- x half))
-                       (x+ (+ x half)))
-                  (draw-rectangle* stream
-                                   x- y0 x+ y
+          (draw-rectangle* stream
+                           (- x half-width) y0 (+ x half-width) y
                                    :ink ink
-                                   :filled t))))))))
+                                   :filled t)))))
 
 
 (defclass GRAPH-DATUM-STEP-SYMBOLOGY-MIXIN
