@@ -63,14 +63,18 @@
   (let ((last-angle (/ pi 2))
         (total (reduce #'+ (datasets self) :key (lambda (x) (dataset-summary-function self x)))))
     (setf (total-value self) total)
-    (dolist (dataset (datasets self))
-      (let* ((value (dataset-summary-function self dataset))
-             (angle (* 2 pi (/ value total)))
-             (datum (make-instance 'pie-graph-datum :value value
-                                  :start-angle (- last-angle angle) :end-angle last-angle)))
-        (setf (getf (pie-datums self) dataset) datum
-              last-angle (start-angle datum)))
-      (display-data dataset stream self))))
+    (if (zerop total)
+        (multiple-value-bind (cx cy) (xy-to-rs self 0 0)
+          (draw-text* stream "Total is zero" cx cy :align-x :center)
+          (draw-circle* stream cx cy (radius self) :filled nil))
+        (dolist (dataset (datasets self))
+          (let* ((value (dataset-summary-function self dataset))
+                 (angle (* 2 pi (/ value total)))
+                 (datum (make-instance 'pie-graph-datum :value value
+                                       :start-angle (- last-angle angle) :end-angle last-angle)))
+            (setf (getf (pie-datums self) dataset) datum
+                  last-angle (start-angle datum)))
+          (display-data dataset stream self)))))
 
 (defmethod display-data ((self essential-graph-data-map-mixin)  stream (graph pie-graph-mixin))
   (with-ink (stream (ink self))
