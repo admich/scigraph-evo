@@ -560,7 +560,7 @@ advised of the possiblity of such damages.
 (defmethod choose-xy-rectangle (graph stream)
   (multiple-value-bind (left top right bottom)
       (with-pointer-cursor (stream :position)
-        (pointer-input-rectangle* :stream stream))
+        (clime:pointer-input-rectangle* :stream stream))
     (when left
       (multiple-value-setq (left top) (stream-to-xy graph left top))
       (multiple-value-setq (right bottom) (stream-to-xy graph right bottom))
