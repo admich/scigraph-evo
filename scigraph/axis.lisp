@@ -169,12 +169,18 @@ advised of the possiblity of such damages.
 			    ; on the side of the axis opposite the ticks.
 			    ; Values are NIL, :MINIMAL, or :EACH.
      axis-number)
-  (let* ((first-tick (+ (down major-min dtick) dtick)))
-    (with-xy-coordinates (graph stream)
+  (with-xy-coordinates (graph stream)
       (if (equal direction :y)
           (draw-line* stream minor major-min minor major-max)
           (draw-line* stream major-min minor major-max minor)))
-    (loop for tick from first-tick below major-max by dtick do
+  (let* ((gated-ticks (and (consp dtick)
+                           (remove-if-not (lambda (x) (<= major-min x major-max)) dtick)))
+         (ticks (or gated-ticks
+                    (loop for tick from (+ (down major-min dtick) dtick) below major-max
+                       by dtick collect tick))))
+    (loop for tick in ticks
+       with first-tick = (first ticks)
+       and last-tick = (car (last ticks)) do
          (with-xy-coordinates (graph stream)
            (if (equal direction :y)
               (draw-line* stream minor tick (+ minor tick-size) tick)
@@ -182,7 +188,7 @@ advised of the possiblity of such damages.
          (when (and axis-number (or (eq tick-numbering :each)
                                     (and (eq tick-numbering :minimal)
                                          (or (= tick first-tick)
-                                             (>= tick (- major-max dtick))))))
+                                             (= tick last-tick)))))
            (if (equal direction :y)
                (multiple-value-bind (x y) (xy-to-rs graph minor tick)
                  (funcall axis-number x y tick))

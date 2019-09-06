@@ -282,7 +282,10 @@ advised of the possiblity of such damages.
 				 ("Each" :value :each))))
 	(pa-slot x-auto-tick 	  "  X Auto tick"      'boolean)
 	(unless x-auto-tick
-	  (pa-slot x-dtick        "    X Tick spacing" 'number))
+      (if (eq :list (prog1 (accept '(member :list :spacing) :stream menu-stream :query-identifier 'xdtick-type :default (if (numberp x-dtick) :spacing :list) :prompt " X Ticks list or spacing?")
+                      (terpri menu-stream)))
+          (pa-slot x-dtick        "    X Tick sequence" '(sequence number))
+          (pa-slot x-dtick        "    X Tick spacing" 'number)))
 	(unless (or x-auto-tick x-dtick)
 	  (pa-warn "For X axis: Choose Auto tick or provide a tick spacing"))
 	(pa-slot y-label	  "  Y axis label"   '(null-or-type string))
@@ -294,7 +297,10 @@ advised of the possiblity of such damages.
 				 ("Each" :value :each))))
 	(pa-slot y-auto-tick	  "  Y Auto tick"      'boolean)
 	(unless y-auto-tick
-	  (pa-slot y-dtick        "    Y Tick spacing" 'number))
+      (if (eq :list (prog1 (accept '(member :list :spacing) :stream menu-stream :query-identifier 'ydtick-type :default (if (numberp y-dtick) :spacing :list) :prompt " Y Ticks list or spacing?")
+                      (terpri menu-stream)))
+          (pa-slot y-dtick        "    Y Tick sequence" '(sequence number))
+          (pa-slot y-dtick        "    Y Tick spacing" 'number)))
 	(unless (or y-auto-tick y-dtick)
 	  (pa-warn "For Y axis: Choose Auto tick or provide a tick spacing"))
 	(pa-slot visible-borders "  Visible Borders"
