@@ -179,11 +179,13 @@ advised of the possiblity of such damages.
            (if (equal direction :y)
               (draw-line* stream minor tick (+ minor tick-size) tick)
               (draw-line* stream tick minor tick (+ minor tick-size))))
-         (when axis-number
+         (when (and axis-number (or (eq tick-numbering :each)
+                                    (and (eq tick-numbering :minimal)
+                                         (or (= tick first-tick)
+                                             (>= tick (- major-max dtick))))))
            (if (equal direction :y)
                (multiple-value-bind (x y) (xy-to-rs graph minor tick)
                  (funcall axis-number x y tick))
                (multiple-value-bind (x y) (xy-to-rs graph tick minor)
-                 (funcall axis-number x y tick)))
-           ))))
+                 (funcall axis-number x y tick)))))))
 
