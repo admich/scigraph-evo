@@ -2,7 +2,11 @@
 
 (export '(x-timestamp-graph))
 
-(defclass x-timestamp-graph-mixin () ())
+(defclass x-timestamp-graph-mixin ()
+  ((x-format-timestring :initarg :x-format-timestring
+                        :accessor x-format-timestring
+                        :initform '((:year 4) "-" (:month 2) "-" (:day 2) " " (:hour 2) ":" (:min 2) ":" (:sec 2))
+                        :documentation "The value of this slot is passed as :format in local-time:format-timestring function")))
 
 (defclass x-timestamp-graph (x-timestamp-graph-mixin annotated-graph)
   ()
@@ -13,12 +17,12 @@
     (if x-auto-tick (time-autotick x-min x-max) x-dtick)))
 
 (defmethod DISPLAY-BOTTOM-BORDER ((self x-timestamp-graph-mixin) STREAM line-drawer)
-  (with-slots (x-min x-max y-min tick-size x-tick-numbering) self
+  (with-slots (x-min x-max y-min tick-size x-tick-numbering x-format-timestring) self
     (let* ((dtick (x-tick-spacing self))
            (tick-size (/ tick-size (y-scale self))))
       (draw-linear-axis self stream x-min x-max y-min :x dtick tick-size x-tick-numbering
                         #'(lambda (r s number)
-                            (let ((number-string (local-time:format-timestring nil (local-time:universal-to-timestamp (round number)) :format '((:year 4) "-" (:month 2) "-" (:day 2))))) ;  " " (:hour 2) ":" (:min 2) ":" (:sec 2)
+                            (let ((number-string (local-time:format-timestring nil (local-time:universal-to-timestamp (round number)) :format x-format-timestring))) 
                               (draw-text* stream number-string r s :align-x :left :align-y :top
                                         :transform-glyphs t
                                         :transformation (make-rotation-transformation* (/ pi 5) (round r) (round s)))))))))
