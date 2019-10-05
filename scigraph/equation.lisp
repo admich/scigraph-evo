@@ -169,8 +169,7 @@ the equation."))
 
 
 (defclass GRAPH-SAMPLE-DATA-MIXIN ()
-	((sample-data :initform () :initarg :sample-data :accessor sample-data))
-	)
+	((sample-data :initform () :initarg :sample-data :accessor sample-data)))
 
 (declare-required-method compute (SELF))
 

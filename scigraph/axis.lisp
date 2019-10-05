@@ -162,13 +162,14 @@ advised of the possiblity of such damages.
      major-min major-max	
      minor
      direction ;:x :y
-     dtick	; Tick spacing in axis units.  
+     dtick	; Tick spacing in axis units or a list of ticks.  
      tick-size	; Length of tick in pixels.  Ticks are draw on the
                                         ; left side of axis if tick-size > 0, else right side.
      tick-numbering ; Should axis numbers be added?  They are placed
 			    ; on the side of the axis opposite the ticks.
 			    ; Values are NIL, :MINIMAL, or :EACH.
-     axis-number)
+     axis-number ; a function with lambda list (x y tick)
+     )
   (with-xy-coordinates (graph stream)
       (if (equal direction :y)
           (draw-line* stream minor major-min minor major-max)
