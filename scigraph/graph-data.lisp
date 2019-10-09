@@ -52,7 +52,7 @@ Y-LABEL
   ((data :initform () :initarg :data :accessor data))) ; data to display
 
 (defclass BASIC-GRAPH-DATA (named-mixin)
-  ((ink :initform +foreground-ink+ :initarg :ink :accessor ink)))
+  ())
 
 (declare-required-method display-data (SELF STREAM graph)) ; For drawing
 (declare-required-method name (SELF))	; For presenting
@@ -239,7 +239,8 @@ PROTOCOL:
 ;;; symbologies should be objects that you can ask for a display datum
 ;;; function that you map to display your data. 
 (defclass graphics-style-mixin ()
-  ((pattern :initform nil :initarg :pattern :accessor pattern) ; in clim, NIL == FILLED
+  ((ink :initform +foreground-ink+ :initarg :ink :accessor ink)
+   (pattern :initform nil :initarg :pattern :accessor pattern) ; in clim, NIL == FILLED
    (thickness :initform 0 :initarg :thickness :accessor thickness)			
    (line-cap-shape :initform :round :initarg :line-cap-shape :accessor line-cap-shape))
   (:documentation "Fancy graphics style."))

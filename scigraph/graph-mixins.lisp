@@ -586,7 +586,7 @@ advised of the possiblity of such damages.
 			 :single-box t
 			 :allow-sensitive-inferiors 
 			 (graph-present-inferiors-p self))
-	      (call-next-method self STREAM)))))))
+          (call-next-method self STREAM)))))))
   (force-output stream))
 
 (defun incrementally-redisplayable-presentation (presentation)
