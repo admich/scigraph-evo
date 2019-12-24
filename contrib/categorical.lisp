@@ -3,12 +3,13 @@
 (defclass categorical-graph-mixin ()
   ()
   (:documentation "Each dataset is a category.
-The graph set the x position of each category"))
+The graph set the x position of each category")
+  (:default-initargs :x-tick-numbering :each
+    :x-dtick 1 :x-auto-tick nil))
 
 (defclass categorical-graph (categorical-graph-mixin
                              annotated-graph)
-  ()
-  (:default-initargs :x-tick-numbering :each))
+  ())
 
 (defmethod display :around ((self categorical-graph-mixin) stream)
   (loop for dataset in (datasets self)
