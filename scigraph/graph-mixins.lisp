@@ -144,7 +144,7 @@ advised of the possiblity of such damages.
 (defmethod display-title ((self graph-border-mixin) STREAM)
   (alexandria:when-let ((the-title (title self)))
     (with-slots (width) self
-      (draw-text* stream  the-title  (/ width 2) -1 :align-x :center :align-y :bottom :ink +foreground-ink+))))
+      (draw-text* stream  the-title  (/ width 2) -2 :align-x :center :align-y :bottom :ink +foreground-ink+))))
 
 (defmethod display-labels ((self graph-border-mixin) stream)
   (display-x-label self stream)
@@ -187,7 +187,7 @@ advised of the possiblity of such damages.
            (tick-size (/ tick-size (y-scale self))))
       (draw-linear-axis self stream x-min x-max y-min :x dtick tick-size x-tick-numbering
                         #'(lambda (r s number)
-                            (draw-text* stream (float-to-string number (x-digits self)) r s :align-x :center :align-y :top))))))
+                            (draw-text* stream (float-to-string number (x-digits self)) r (+ s 2) :align-x :center :align-y :top))))))
 
 (defmethod display-top-border ((self graph-border-mixin) STREAM line-drawer)
   (with-slots (x-min x-max y-max tick-size x-tick-numbering) self
@@ -213,7 +213,7 @@ advised of the possiblity of such damages.
            (tick-size (/ tick-size (x-scale self))))
       (draw-linear-axis self stream y-min y-max x-min :y dtick tick-size y-tick-numbering
                         #'(lambda (r s number)
-                            (draw-text* stream (float-to-string number (y-digits self))  r s :align-x :right :align-y :center))))))
+                            (draw-text* stream (float-to-string number (y-digits self))  (- r 1) s :align-x :right :align-y :center))))))
 
 
 (defmethod DISPLAY-RIGHT-BORDER ((self graph-border-mixin) STREAM line-drawer)
@@ -291,7 +291,7 @@ advised of the possiblity of such damages.
   (display-grid self STREAM))
 
 
-(defclass GRAPH-DATASETS-MIXIN (graph-border-mixin basic-graph)
+(defclass GRAPH-DATASETS-MIXIN (basic-graph)
   ((datasets :initform nil :initarg :datasets :reader datasets)
    (hidden-datasets :initform nil :initarg :hidden-datasets :accessor hidden-datasets))
   (:documentation 

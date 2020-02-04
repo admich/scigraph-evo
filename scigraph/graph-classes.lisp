@@ -172,8 +172,8 @@ powerful, and you may want to remove some of the mixins.
      graph-limits-mixin
      graph-auto-scale-mixin
      graph-grid-mixin
-     graph-datasets-mixin
      graph-border-mixin
+     graph-datasets-mixin
      basic-graph
      named-mixin)
   ()
