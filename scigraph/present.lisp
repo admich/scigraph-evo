@@ -72,6 +72,8 @@ or at top left."
     (if  (eql reference :inside)
          (set-inside-box graph (make-rectangle* left top (+ left width) (+ top height)) stream)
          (set-outside-box graph (make-rectangle* left top  (+ left width) (+ top height)) stream))
+    (with-bounding-rectangle* (x1 y1 x2 y2) (outside-box graph)
+      (draw-rectangle* stream x1 y1 x2 y2 :filled t :ink +background-ink+))
     (display graph stream)
     (setf (stream-cursor-position stream) (values left (+ top height)))))
 
