@@ -65,11 +65,11 @@ advised of the possiblity of such damages.
         (height (height graph)))
     (make-rectangle* left top (+ left width) (+ top height))))
 
-(defmethod set-inside-box ((graph graph-box) box stream)
-  "Return a bounding rectangle of the outside box in the stream coordinates"
+(defmethod set-inside-box ((graph graph-box) rectangle stream)
+  "Set the inside box to rectangle in the stream coordinates"
   (declare (ignore stream))
   (with-slots (left top width height) graph
-    (multiple-value-bind (min-x min-y max-x max-y) (rectangle-edges* box)
+    (multiple-value-bind (min-x min-y max-x max-y) (rectangle-edges* rectangle)
       (setf left min-x
             top min-y
             width (- max-x min-x)
@@ -80,8 +80,8 @@ advised of the possiblity of such damages.
   "Return a bounding rectangle of the outside box in the stream coordinates"
   (inside-box graph))
 
-(defmethod set-outside-box ((graph graph-box) box stream)
-  (set-inside-box graph box stream))
+(defmethod set-outside-box ((graph graph-box) rectangle stream)
+  (set-inside-box graph rectangle stream))
 
 (defclass XY-BOX
 	  ()
@@ -275,7 +275,8 @@ advised of the possiblity of such damages.
                          (+ min-x left-margin-size)
                          (+ min-y top-margin-size)
                          (- max-x right-margin-size)
-                         (- max-y top-margin-size))))))
+                         (- max-y top-margin-size))
+                        stream))))
 
 (defmethod outside-box ((graph essential-graph-margin-mixin))
   (multiple-value-bind (x0 y0 x1 y1) (rectangle-edges* (inside-box graph))
