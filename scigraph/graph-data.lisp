@@ -210,23 +210,17 @@ PROTOCOL:
       (declare (compiled-function f))
       (if (and x-dither x-dither (zerop x-dither) (zerop y-dither))
 	  f
-	  (multiple-value-bind (u-dither v-dither)
+	  (multiple-value-bind (r-dither s-dither)
 	      (xy-to-rs-distance graph
 				 (or x-dither 0) (or y-dither 0))
-	    (declare (fixnum u-dither v-dither))
-	    ;; Do dithering in uv coordinates so we can avoid floating point arithmetic
-	    ;; (big win for Lucid).
-	    (setq u-dither (abs u-dither) v-dither (abs v-dither))
-	    #'(lambda (stream u v datum)
-		(declare (fixnum u v))
-		(funcall f stream
-			 (+ u (the fixnum
-				   (statistics:uniform-between
-				    (- u-dither) u-dither)))
-			 (+ v (the fixnum
-				   (statistics:uniform-between
-				    (- v-dither) v-dither)))
-			 datum)))))))
+	    (setq r-dither (abs r-dither) s-dither (abs s-dither))
+	    #'(lambda (stream r s datum)
+		    (funcall f stream
+			         (+ r (statistics:uniform-between
+				           (- r-dither) r-dither))
+			         (+ s (statistics:uniform-between
+				           (- s-dither) s-dither))
+			         datum)))))))
 
 (defmethod display-data :around ((self graph-data-dither-mixin) stream graph)
   ;; Always use the same seed to get the same dithering.

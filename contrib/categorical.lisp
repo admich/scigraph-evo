@@ -50,7 +50,8 @@ The graph set the x position of each category")
   ()
   (:default-initargs :x-tick-numbering :each))
 
-(defclass statistics-dataset (categorical-sample-dataset)
+(defclass statistics-dataset (categorical-sample-dataset
+                              graph-data-dither-mixin)
   ((statistic :initarg :statistic :accessor dataset-statistic :initform :samples)))
 
 (defmethod data ((self statistics-dataset))
@@ -61,10 +62,15 @@ The graph set the x position of each category")
     (loop for d in (sample-data self) collect
          (list (category-number self) d))))
 
+(defmethod data-from-statistic ((self statistics-dataset) (statistic (eql :identity)))
+  (loop for d in (sample-data self) summing d into tot
+        collect (list (category-number self) d)))
+
 (defmethod data-from-statistic ((self statistics-dataset) (statistic (eql :mean)))
   (loop for d in (sample-data self) summing d into tot
        finally
-       (return `((,(category-number self) ,(/ tot (length (sample-data self))))))))
+          (return `((,(category-number self) ,(/ tot (length (sample-data self))))))))
+
 
 (defmethod data-from-statistic ((self statistics-dataset) (statistic (eql :box-whiskers)))
   "return (x mean min 1q 2q 3q max)"
