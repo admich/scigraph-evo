@@ -233,8 +233,7 @@ PROTOCOL:
 ;;; symbologies should be objects that you can ask for a display datum
 ;;; function that you map to display your data. 
 (defclass graphics-style-mixin ()
-  ((ink :initform +foreground-ink+ :initarg :ink :accessor ink)
-   (pattern :initform nil :initarg :pattern :accessor pattern) ; in clim, NIL == FILLED
+  ((pattern :initform nil :initarg :pattern :accessor pattern) ; in clim, NIL == FILLED
    (thickness :initform 0 :initarg :thickness :accessor thickness)			
    (line-cap-shape :initform :round :initarg :line-cap-shape :accessor line-cap-shape))
   (:documentation "Fancy graphics style."))
@@ -531,8 +530,8 @@ PROTOCOL:
     "Provides :SCATTER :LINE :STEP and :BAR symbologies for plotting data."))
 
 
-(defclass GRAPH-DATA-AUTO-COLOR-MIXIN ()
-  ())
+(defclass GRAPH-DATA-COLOR-MIXIN ()
+  ((ink :initform +foreground-ink+ :initarg :ink :accessor ink)))
 
 (defgeneric auto-set-dataset-color (dataset colors)
   (:documentation "Set automatically the color for a dataset. Return the chosen color."))
@@ -540,7 +539,7 @@ PROTOCOL:
 (defmethod auto-set-dataset-color (dataset colors)
   '())
 
-(defmethod auto-set-dataset-color ((dataset graph-data-auto-color-mixin) colors)
+(defmethod auto-set-dataset-color ((dataset graph-data-color-mixin) colors)
   (with-slots (ink) dataset
     (unless (and ink (not (eql ink +foreground-ink+)))
       (setf ink (first colors)))))

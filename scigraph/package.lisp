@@ -142,7 +142,7 @@ advised of the possiblity of such damages.
    #:presentable-data-mixin
    #:graph-data-limits-mixin
    #:graph-data-auto-scale-mixin
-   #:graph-data-auto-color-mixin
+   #:graph-data-color-mixin
    #:graph-data-symbology-mixin
    #:graph-data-add-datum-mixin
    #:presentable-graph-data-legend-mixin

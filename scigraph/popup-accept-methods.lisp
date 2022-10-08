@@ -221,7 +221,7 @@ advised of the possiblity of such damages.
       (setq symbologies (list :scatter)))	  ; DEFAULT
     ))
 
-(defmethod pop-accept-items progn ((self graph-data-auto-color-mixin)
+(defmethod pop-accept-items progn ((self graph-data-color-mixin)
 				   MENU-STREAM GRAPH-WINDOW)
   (multiple-value-bind (x y) (stream-cursor-position menu-stream)
     (setf (slot-value self 'ink)

@@ -44,7 +44,7 @@ powerful, and you may want to remove some of the mixins.
 	   presentable-data-mixin
 	   graph-data-limits-mixin
 	   graph-data-auto-scale-mixin
-	   graph-data-auto-color-mixin
+	   graph-data-color-mixin
 	   graph-data-symbology-mixin
 	   graph-data-add-datum-mixin
 	   graph-data-legend-mixin
