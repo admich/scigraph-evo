@@ -160,6 +160,7 @@ advised of the possiblity of such damages.
    #:annotated-graph
    #:presentable-graph-mixin   
    #:graph-datasets-mixin
+   #:graph-datasets-auto-color-mixin
    #:graph-legend-mixin
    #:graph-relative-size-mixin
    #:graph-zoom-mixin

@@ -317,15 +317,6 @@ advised of the possiblity of such damages.
   (with-slots (datasets) self
     (when datasets (setf (datasets self) datasets))))
 
-(defmethod display :before ((self graph-datasets-mixin) STREAM)
-  (unless *colors* (init-colors (port stream)))
-  (let* ((datasets (datasets self)) 
-         (used-color (map 'list #'ink datasets))
-         (colors (set-difference *colors* used-color)))
-    (loop for dataset in datasets do
-         (unless colors (setf colors *colors*))
-         (setf colors (remove (auto-set-dataset-color dataset colors) colors)))))
-
 (defmethod display :after ((self graph-datasets-mixin) STREAM)
   (graph-display-data self STREAM))
 
@@ -373,6 +364,24 @@ advised of the possiblity of such damages.
       (unless (stringp the-title)
 	(setq the-title (format nil "~a" the-title))))
     (or the-title " ")))
+
+
+(defclass GRAPH-DATASETS-AUTO-COLOR-MIXIN (graph-datasets-mixin)
+  ()
+  (:documentation
+   "Automatically choose the color for the datasets."))
+
+(defmethod display :before ((self graph-datasets-auto-color-mixin) STREAM)
+  (unless *colors* (init-colors (port stream)))
+  (let* ((datasets (datasets self))
+         (used-color (map 'list #'ink datasets))
+         (colors (set-difference *colors* used-color)))
+    (loop for dataset in datasets
+          do
+             (unless colors (setf colors *colors*))
+             (with-slots (ink) dataset
+               (unless (and ink (not (eql ink +foreground-ink+)))
+                 (setf ink (pop colors)))))))
 
 
 (defclass GRAPH-AUTO-SCALE-MIXIN (graph-datasets-mixin basic-graph) 

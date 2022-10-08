@@ -533,16 +533,6 @@ PROTOCOL:
 (defclass GRAPH-DATA-COLOR-MIXIN ()
   ((ink :initform +foreground-ink+ :initarg :ink :accessor ink)))
 
-(defgeneric auto-set-dataset-color (dataset colors)
-  (:documentation "Set automatically the color for a dataset. Return the chosen color."))
-
-(defmethod auto-set-dataset-color (dataset colors)
-  '())
-
-(defmethod auto-set-dataset-color ((dataset graph-data-color-mixin) colors)
-  (with-slots (ink) dataset
-    (unless (and ink (not (eql ink +foreground-ink+)))
-      (setf ink (first colors)))))
 
 #|
 HOW AUTO-SCALING WORKS.

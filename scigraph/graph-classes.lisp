@@ -173,6 +173,7 @@ powerful, and you may want to remove some of the mixins.
      graph-auto-scale-mixin
      graph-grid-mixin
      graph-border-mixin
+     graph-datasets-auto-color-mixin
      graph-datasets-mixin
      basic-graph
      named-mixin)
