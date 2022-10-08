@@ -318,6 +318,7 @@ advised of the possiblity of such damages.
     (when datasets (setf (datasets self) datasets))))
 
 (defmethod display :before ((self graph-datasets-mixin) STREAM)
+  (unless *colors* (init-colors (port stream)))
   (let* ((datasets (datasets self)) 
          (used-color (map 'list #'ink datasets))
          (colors (set-difference *colors* used-color)))

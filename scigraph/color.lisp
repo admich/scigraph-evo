@@ -27,22 +27,24 @@ advised of the possiblity of such damages.
 
 (in-package :graph)
 
-(defvar *colors*
-  (concatenate 'list 
-               (list
-                +green+
-                +magenta+
-                +cyan+
-                +red+
-                +gold+
-                +sienna+
-                +salmon+
-                +orange+
-                +aquamarine+
-                +black+)
-               (make-contrasting-inks
-                (contrasting-inks-limit (find-port))))
-  "Used for pop-edit.")
+(defvar *colors* '() "Used for pop-edit.")
+
+(defun init-colors (port)
+  (setf *colors*
+        (concatenate 'list
+                     (list
+                      +green+
+                      +magenta+
+                      +cyan+
+                      +red+
+                      +gold+
+                      +sienna+
+                      +salmon+
+                      +orange+
+                      +aquamarine+
+                      +black+)
+                     (make-contrasting-inks
+                      (contrasting-inks-limit port)))))
 
 (defmethod name ((color climi::named-color))
   (with-slots ((name climi::name)) color
