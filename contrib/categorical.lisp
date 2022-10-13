@@ -104,22 +104,21 @@ The graph set the x position of each category")
         (draw-line* stream r max r q3)
         (draw-line* stream (- r hwidth) max (+ r hwidth) max))))
 
+;;; CHECK THIS: I define this only to not use the ink of data
 (defmethod display-data ((self essential-graph-data-map-mixin) STREAM (graph statistical-graph))
   "Display the data on graph GRAPH using DATUM-DISPLAYER."
-  ;;; review i define only to use the graph ink instead of data ink
-  (with-ink (stream (ink graph))
-    ;; Fixup the ink just once, since its the same for every datum.
-    (let ((displayer (datum-displayer self graph))
-          (trans (xy-to-rs-transformation graph)))
-      (declare (compiled-function displayer))
-      (map-data self #'(lambda (datum)
-                         (multiple-value-bind (x y) (datum-position self datum)
-                           (multiple-value-setq (x y) (transform-position trans x y))
-                           (funcall displayer stream x y datum)
-                           ;; Forcing the x buffer is nice here, but it is
-                           ;; extremely expensive.  It slows drawing by 4x.
-                           ;;  (force-output stream)
-                           ))
-                (data self)))))
+  ;; Fixup the ink just once, since its the same for every datum.
+  (let ((displayer (datum-displayer self graph))
+        (trans (xy-to-rs-transformation graph)))
+    (declare (compiled-function displayer))
+    (map-data self #'(lambda (datum)
+                       (multiple-value-bind (x y) (datum-position self datum)
+                         (multiple-value-setq (x y) (transform-position trans x y))
+                         (funcall displayer stream x y datum)
+                         ;; Forcing the x buffer is nice here, but it is
+                         ;; extremely expensive.  It slows drawing by 4x.
+                         ;;  (force-output stream)
+                         ))
+              (data self))))
 
 (export '(categorical-graph categorical-sample-dataset statistical-graph statistics-dataset))
