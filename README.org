@@ -55,7 +55,7 @@ Some goals of this fork are:
 ** Usage
 
 1. Clone this repo in a location where [[https://www.quicklisp.org/beta/][quicklisp]] can find projects
-   (examples =~/.quicklisp/local-project/=)
+   (examples =~/.quicklisp/local-project/= =~/common-lisp/=)
 2. Load =scigraph-evo= system:
 #+BEGIN_SRC lisp
 (ql:quickload :scigraph-evo)
