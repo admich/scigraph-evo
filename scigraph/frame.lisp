@@ -121,7 +121,7 @@ class.  So you should do the following (in the ws package, 'natch):
                                   :pretty-name title)))
     (setf (clim:frame-pretty-name frame) title)
 	(clim:reset-frame frame)
-    (let ((graft (graft (port manager))))
+    (let ((graft (find-graft :port (port manager))))
       (clim:layout-frame frame (min width (clim:graft-width graft :units :device))
                          (min height (clim:graft-width graft :units :device))))
 
