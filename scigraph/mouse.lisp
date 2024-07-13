@@ -45,9 +45,15 @@ advised of the possiblity of such damages.
            ,right)))))
 
 (defmethod post-mouse-documentation (stream string)
-  (declare (ignore stream))
-  (clim-extensions:frame-display-pointer-documentation-string
-   *application-frame* string))
+  (let ((pd-stream (frame-pointer-documentation-output
+                 (pane-frame stream))))
+    (when pd-stream
+      (with-output-recording-options (pd-stream :record nil)
+	(with-end-of-line-action (pd-stream :allow)
+	  (with-end-of-page-action (pd-stream :allow)
+	    (window-clear pd-stream)
+	    (when string
+	      (write-string string pd-stream))))))))
 
 (defmacro with-mouse-documentation ((window string) &body body)
   `(unwind-protect
