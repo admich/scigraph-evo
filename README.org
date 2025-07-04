@@ -1,3 +1,5 @@
+Now this project is on https://codeberg.org/admich/scigraph-evo
+
 =scigraph-evo= means Scigraph Evolution and it is a fork of Scigraph a
 plot library for CLIM.
 
